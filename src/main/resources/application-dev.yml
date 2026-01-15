@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: barber-bot
+
+telegram:
+  bot-name: ${TELEGRAM_BOT_NAME}
+  bot-username: ${TELEGRAM_BOT_USERNAME}
+  bot-token: ${TELEGRAM_BOT_TOKEN}
+  secret-token: ${TELEGRAM_SECRET_TOKEN}
+
+app:
+  enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    org.springframework.boot.context.config: DEBUG
+    hr.lknezevic.barberbot: DEBUG

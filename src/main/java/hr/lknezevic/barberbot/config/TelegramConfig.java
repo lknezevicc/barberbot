@@ -7,6 +7,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "telegram")
 public record TelegramConfig(
+        @NotBlank String botName,
+        @NotBlank String botUsername,
         @NotBlank String botToken,
         @NotBlank String secretToken
 ) {}

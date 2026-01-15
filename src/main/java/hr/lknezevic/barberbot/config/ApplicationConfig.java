@@ -6,6 +6,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Validated
 @ConfigurationProperties(prefix = "app")
-public record ApplicationConfig (
-    @NotNull Boolean enabled
+public record ApplicationConfig(
+        @NotNull Boolean enabled,
+        @NotNull WorkerConfig worker
 ) {}

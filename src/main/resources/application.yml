@@ -13,6 +13,9 @@ telegram:
 
 app:
   enabled: true
+  worker:
+    count: 3
+    thread-name: "update-worker-"
 
 management:
   endpoints:

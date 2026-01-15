@@ -23,7 +23,6 @@ public final class BotInitializer implements ApplicationRunner {
         initializeCommands();
     }
 
-
     void initializeCommands() {
         try {
             if (BarberBotCommand.differsFrom(botCommandService.getCommands())) {

@@ -1,6 +1,6 @@
 package hr.lknezevic.barberbot.telegram;
 
-import hr.lknezevic.barberbot.config.TelegramConfig;
+import hr.lknezevic.barberbot.config.application.TelegramConfig;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;

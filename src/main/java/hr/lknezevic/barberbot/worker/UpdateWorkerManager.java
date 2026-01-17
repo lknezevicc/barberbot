@@ -1,11 +1,10 @@
 package hr.lknezevic.barberbot.worker;
 
-import hr.lknezevic.barberbot.config.WorkerConfig;
+import hr.lknezevic.barberbot.config.application.WorkerConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -14,17 +13,17 @@ import org.springframework.stereotype.Component;
 public final class UpdateWorkerManager implements SmartLifecycle {
 
     private final WorkerConfig workerConfig;
-    private final TaskExecutor taskExecutor;
-    private final ApplicationContext applicationContext;
+    private final ThreadPoolTaskExecutor taskExecutor;
+    private final ObjectProvider<Worker> workerProvider;
     private volatile boolean running = false;
 
     public UpdateWorkerManager(
             WorkerConfig workerConfig,
-            @Qualifier("updateTaskExecutor") TaskExecutor taskExecutor,
-            ApplicationContext applicationContext) {
+            @Qualifier("updateTaskExecutor") ThreadPoolTaskExecutor taskExecutor,
+            ObjectProvider<Worker> workerProvider) {
         this.workerConfig = workerConfig;
         this.taskExecutor = taskExecutor;
-        this.applicationContext = applicationContext;
+        this.workerProvider = workerProvider;
     }
 
     @Override
@@ -35,21 +34,29 @@ public final class UpdateWorkerManager implements SmartLifecycle {
     @Override
     public void start() {
         log.info("Starting {} update workers", workerConfig.count());
+        running = true;
 
         for (int i = 0; i < workerConfig.count(); i++) {
-            UpdateWorker worker = applicationContext.getBean(UpdateWorker.class);
-            taskExecutor.execute(worker::process);
+            taskExecutor.execute(() -> {
+                while (!Thread.currentThread().isInterrupted() && running) {
+                    Worker worker = workerProvider.getObject();
+                    try {
+                        worker.process(() -> running);
+                    } catch (Exception e) {
+                        log.error("Worker crashed, restarting...", e);
+                    }
+                }
+            });
         }
 
-        running = true;
+        log.info("All workers started");
     }
 
     @Override
     public void stop() {
         log.info("Stopping update workers");
-
-        ((ThreadPoolTaskExecutor) taskExecutor).shutdown();
         running = false;
+        taskExecutor.getThreadPoolExecutor().shutdown();
     }
 
     @Override

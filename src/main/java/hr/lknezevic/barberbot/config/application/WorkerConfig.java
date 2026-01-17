@@ -1,4 +1,4 @@
-package hr.lknezevic.barberbot.config;
+package hr.lknezevic.barberbot.config.application;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

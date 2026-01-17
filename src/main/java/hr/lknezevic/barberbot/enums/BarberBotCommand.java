@@ -13,11 +13,11 @@ import java.util.stream.Collectors;
 @Getter
 @RequiredArgsConstructor
 public enum BarberBotCommand {
-    START("/start", "Pokretanje bota"),
-    BOOK("/book", "Rezerviraj termin"),
-    MY_APPOINTMENTS("/my_appointments", "Pregled rezervacija"),
-    CANCEL("/cancel", "Otkaži termin"),
-    HELP("/help", "Informacije i pomoć");
+    START("start", "Pokretanje bota"),
+    BOOK("book", "Rezerviraj termin"),
+    MY_APPOINTMENTS("my_appointments", "Pregled rezervacija"),
+    CANCEL("cancel", "Otkaži termin"),
+    HELP("help", "Informacije i pomoć");
 
     final String command;
     final String description;

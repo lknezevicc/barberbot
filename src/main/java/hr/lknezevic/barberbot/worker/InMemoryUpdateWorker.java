@@ -9,16 +9,19 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.function.Supplier;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class UpdateWorker {
+public final class InMemoryUpdateWorker implements Worker {
 
     private final UpdateQueue updateQueue;
     private final BotMessageService botMessageService;
 
-    void process() {
+    @Override
+    public void process(Supplier<Boolean> runningSupplier) {
         try {
             while (!Thread.currentThread().isInterrupted()) {
                 Update update = updateQueue.dequeue();

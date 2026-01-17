@@ -1,5 +1,6 @@
 package hr.lknezevic.barberbot.config;
 
+import hr.lknezevic.barberbot.config.application.WorkerConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +18,7 @@ public class WorkerConfiguration {
         executor.setQueueCapacity(0);
         executor.setThreadNamePrefix(config.threadName());
         executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(10);
+        executor.setAwaitTerminationSeconds(5);
         executor.initialize();
         return executor;
     }

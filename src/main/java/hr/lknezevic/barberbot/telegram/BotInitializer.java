@@ -25,6 +25,7 @@ public final class BotInitializer implements ApplicationRunner {
 
     void initializeCommands() {
         try {
+            log.info("COMMANDS: {}", botCommandService.getCommands());
             if (BarberBotCommand.differsFrom(botCommandService.getCommands())) {
                 botCommandService.setCommands(BarberBotCommand.getBotCommands());
                 log.debug("Commands set successfully!");

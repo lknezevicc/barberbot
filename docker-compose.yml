@@ -5,3 +5,15 @@ services:
       - "8080:8080"
     env_file:
       - .env.dev
+
+  redis:
+    image: redis:7
+    container_name: "barberbot-redis"
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

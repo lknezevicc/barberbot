@@ -1,7 +1,7 @@
 package hr.lknezevic.barberbot.filter;
 
-import hr.lknezevic.barberbot.config.ApplicationConfig;
-import hr.lknezevic.barberbot.config.TelegramConfig;
+import hr.lknezevic.barberbot.config.application.ApplicationConfig;
+import hr.lknezevic.barberbot.config.application.TelegramConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

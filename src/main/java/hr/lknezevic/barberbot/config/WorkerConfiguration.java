@@ -8,7 +8,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
 @RequiredArgsConstructor
-public class WorkerConfiguration {
+class WorkerConfiguration {
 
     @Bean(name = "updateTaskExecutor")
     public ThreadPoolTaskExecutor updateTaskExecutor(WorkerConfig config) {

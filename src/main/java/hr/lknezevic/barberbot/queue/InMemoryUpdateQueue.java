@@ -22,4 +22,9 @@ public final class InMemoryUpdateQueue implements UpdateQueue {
     public void enqueue(Update update) {
         queue.offer(update);
     }
+
+    @Override
+    public void moveToDlq(Update update) {
+
+    }
 }

@@ -17,13 +17,33 @@ app:
     count: 3
     thread-name: "update-worker-"
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      redisQueue:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
 
 logging:
   level:
     org.springframework.boot.context.config: DEBUG
     hr.lknezevic.barberbot: DEBUG
+    io.github.resilience4j.circuitbreaker: INFO

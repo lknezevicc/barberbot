@@ -15,6 +15,7 @@ public final class UpdateWorkerManager implements SmartLifecycle {
     private final WorkerConfig workerConfig;
     private final ThreadPoolTaskExecutor taskExecutor;
     private final ObjectProvider<Worker> workerProvider;
+
     private volatile boolean running = false;
 
     public UpdateWorkerManager(

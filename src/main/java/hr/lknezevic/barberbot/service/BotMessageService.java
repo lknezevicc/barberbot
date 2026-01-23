@@ -1,9 +1,12 @@
 package hr.lknezevic.barberbot.service;
 
+import hr.lknezevic.barberbot.model.Session;
 import hr.lknezevic.barberbot.telegram.TelegramGateway;
+import hr.lknezevic.barberbot.utils.ConstantsUtility;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -26,6 +29,28 @@ public final class BotMessageService {
 
         try {
             telegramGateway.sendMessage(chatId, reply);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send message to chatId={}", chatId, e);
+        }
+    }
+
+    public void sendMessage(String chatId, String message) {
+        try {
+            telegramGateway.sendMessage(chatId, message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send message to chatId={}", chatId, e);
+        }
+    }
+
+    public void sendWelcomeMessage(Long chatId, Session session) {
+        try {
+            SendMessage message = SendMessage.builder()
+                    .chatId(chatId)
+                    .text("Welcome to BarberBot! ✂️")
+                    .replyMarkup(ConstantsUtility.getMainMenu(session.id()))
+                    .build();
+
+            telegramGateway.execute(message);
         } catch (TelegramApiException e) {
             log.error("Failed to send message to chatId={}", chatId, e);
         }

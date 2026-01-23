@@ -1,74 +1,64 @@
 package hr.lknezevic.barberbot.worker;
 
-import hr.lknezevic.barberbot.queue.UpdateQueue;
-import hr.lknezevic.barberbot.service.BotMessageService;
+import hr.lknezevic.barberbot.handler.HandlerPipeline;
 import hr.lknezevic.barberbot.signal.ShutdownSignal;
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import hr.lknezevic.barberbot.storage.Queue;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.concurrent.CancellationException;
+import java.time.Duration;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @Slf4j
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Primary
-final class RedisUpdateWorker extends BaseWorker {
+public final class RedisUpdateWorker extends BaseWorker<Update> {
+
+    private final Queue<Update> redisQueue;
+    private final HandlerPipeline<Update> updateHandlerPipeline;
+    private final Supplier<Update> itemSupplier = this::fetchUpdate;
+    private final Consumer<Update> itemConsumer = this::processUpdate;
 
     public RedisUpdateWorker(
-            UpdateQueue updateQueue,
-            BotMessageService botMessageService,
-            ShutdownSignal shutdownSignal) {
-        super(updateQueue, botMessageService, shutdownSignal);
+            ShutdownSignal shutdownSignal,
+            Queue<Update> redisQueue,
+            HandlerPipeline<Update> updateHandlerPipeline) {
+        super(shutdownSignal);
+        this.redisQueue = redisQueue;
+        this.updateHandlerPipeline = updateHandlerPipeline;
     }
 
     @Override
     public void process(Supplier<Boolean> runningSupplier) {
-        while (runningSupplier.get() && !Thread.currentThread().isInterrupted()) {
-            final Update update;
+        run(runningSupplier, itemSupplier, itemConsumer, DEFAULT_BACKOFF_MS);
+    }
 
-            try {
-                update = updateQueue.dequeue();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.info("Worker stopped via interrupt");
-                return;
-            } catch (CallNotPermittedException e) {
-                if (shutdownSignal.isShuttingDown()) return;
-                log.warn("Redis circuit breaker OPEN, backing off {}ms", THREAD_BACKOFF_MS);
-                backoff();
-                continue;
-            } catch (DataAccessException | CancellationException e) {
-                if (shutdownSignal.isShuttingDown()) return;
-                log.warn("Redis unavailable during dequeue, backing off {}ms: {}", THREAD_BACKOFF_MS, e.toString());
-                backoff();
-                continue;
-            } catch (Exception e) {
-                if (shutdownSignal.isShuttingDown()) return;
-                log.error("Unexpected dequeue failure, backing off {}ms", THREAD_BACKOFF_MS, e);
-                backoff();
-                continue;
-            }
+    private Update fetchUpdate() {
+        try {
+            return redisQueue.dequeue(Duration.ofSeconds(3)).orElse(null);
+        } catch (Exception e) {
+            if (shutdownSignal.isShuttingDown()) return null;
+            log.warn("Error fetching update from queue, backing off {}ms", DEFAULT_BACKOFF_MS, e);
+            backoff(DEFAULT_BACKOFF_MS);
+            return null;
+        }
+    }
 
-            if (update == null || !update.hasMessage()) continue;
+    private void processUpdate(Update update) {
+        try {
+            updateHandlerPipeline.process(update);
+        } catch (Exception e) {
+            log.error("Handler failed for updateId={}, moving to DLQ", update.getUpdateId(), e);
             try {
-                log.debug("Processing updateId={}", update.getUpdateId());
-                botMessageService.handleMessage(update.getMessage());
-            } catch (Exception e) {
-                log.error("Processing failed for updateId={}, moving to DLQ: {}",
-                        update.getUpdateId(), e.getMessage(), e);
-                try {
-                    updateQueue.moveToDlq(update);
-                } catch (Exception ex) {
-                    log.error("Failed to move updateId={} to DLQ: {}",
-                            update.getUpdateId(), ex.getMessage(), ex);
-                }
+                redisQueue.moveToDlq(update);
+            } catch (Exception ex) {
+                log.error("Failed to move updateId={} to DLQ", update.getUpdateId(), ex);
             }
         }
     }

@@ -1,6 +1,6 @@
 package hr.lknezevic.barberbot.worker;
 
-import hr.lknezevic.barberbot.queue.UpdateQueue;
+import hr.lknezevic.barberbot.storage.Queue;
 import hr.lknezevic.barberbot.service.BotMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,14 +17,14 @@ import java.util.function.Supplier;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public final class InMemoryUpdateWorker implements Worker {
 
-    private final UpdateQueue updateQueue;
+    private final Queue queue;
     private final BotMessageService botMessageService;
 
     @Override
     public void process(Supplier<Boolean> runningSupplier) {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                Update update = updateQueue.dequeue();
+                Update update = queue.dequeue();
                 log.debug("Processing updateId={}", update.getUpdateId());
 
                 botMessageService.handleMessage(update.getMessage());

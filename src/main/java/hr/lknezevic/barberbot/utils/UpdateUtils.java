@@ -40,7 +40,4 @@ public class UpdateUtils {
         return update.hasMessage() && update.getMessage().hasText();
     }
 
-    public String getCommand(Update update) {
-
-    }
 }

@@ -1,8 +1,9 @@
 package hr.lknezevic.barberbot.enums;
 
 public enum SessionState {
+    NONE,
     IDLE,
-    RESERVATION_DATE,
-    RESERVATION_TIME,
-    RESERVATION_CONFIRM
+    BOOKING,
+    CONFIRMING,
+    CANCELING,
 }

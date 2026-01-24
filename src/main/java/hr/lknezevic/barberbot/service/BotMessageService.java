@@ -34,7 +34,7 @@ public final class BotMessageService {
         }
     }
 
-    public void sendMessage(String chatId, String message) {
+    public void sendMessage(Long chatId, String message) {
         try {
             telegramGateway.sendMessage(chatId, message);
         } catch (TelegramApiException e) {

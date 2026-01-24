@@ -25,7 +25,7 @@ public class SessionService {
 
     public Session startSession(String userId) {
         Session session = new Session(
-                SessionState.IDLE,
+                SessionState.NONE,
                 UUID.randomUUID().toString(),
                 userId,
                 LocalDateTime.now(),
@@ -55,6 +55,22 @@ public class SessionService {
                 refreshedSession.userId() + ":session",
                 session.id(),
                 SESSION_TTL);
+    }
+
+    public void refreshSessionByUserId(String userId) {
+        if (userId == null) return;
+        getSessionByUserId(userId).ifPresent(this::refreshSession);
+    }
+
+    public Session setSessionState(Session session, SessionState newState) {
+        Session updated = session.withSessionState(newState);
+        sessionRedisKeyValueStore.save(updated.id(), updated, SESSION_TTL);
+        userSessionRedisStringKeyValueStore.save(
+                updated.userId() + ":session",
+                updated.id(),
+                SESSION_TTL
+        );
+        return updated;
     }
 
     public Optional<Session> getSession(String sessionId) {

@@ -17,4 +17,13 @@ public class LlmService {
                 .call()
                 .content();
     }
+
+    public String ask(String systemPrompt, String userMessage) {
+        return chatClient
+                .prompt()
+                .system(systemPrompt)
+                .user(userMessage)
+                .call()
+                .content();
+    }
 }

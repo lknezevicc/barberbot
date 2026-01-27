@@ -1,6 +1,6 @@
 package hr.lknezevic.barberbot.handler;
 
-public interface Handler<T, R> {
+public interface Handler<T> {
     boolean supports(T value);
-    R handle(T value);
+    void handle(T value);
 }

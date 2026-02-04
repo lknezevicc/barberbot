@@ -1,6 +1,6 @@
 package hr.lknezevic.barberbot.enums;
 
-public enum Intent {
+public enum LlmIntent {
     START,
     BOOKING,
     MY_BOOKINGS,

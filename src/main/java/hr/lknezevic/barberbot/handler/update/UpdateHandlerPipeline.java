@@ -1,15 +1,12 @@
 package hr.lknezevic.barberbot.handler.update;
 
-import hr.lknezevic.barberbot.enums.HandlerResult;
 import hr.lknezevic.barberbot.handler.HandlerPipeline;
-import hr.lknezevic.barberbot.model.ActionToken;
 import hr.lknezevic.barberbot.model.LlmResult;
 import hr.lknezevic.barberbot.model.UpdateHandlerContext;
-import hr.lknezevic.barberbot.service.BotMessageService;
 import hr.lknezevic.barberbot.service.LlmService;
 import hr.lknezevic.barberbot.service.SessionService;
+import hr.lknezevic.barberbot.service.UpdateService;
 import hr.lknezevic.barberbot.utils.PromptFactory;
-import hr.lknezevic.barberbot.utils.UpdateUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -22,73 +19,54 @@ public class UpdateHandlerPipeline implements HandlerPipeline<Update> {
 
     private final SessionService sessionService;
     private final LlmService llmService;
-    private final BotMessageService botMessageService;
+    private final UpdateService updateService;
     private final List<UpdateHandler> handlers;
 
     @Override
     public void process(Update value) {
-
-        if (value.hasCallbackQuery()) {
-            String data = value.getCallbackQuery().getData();
-            ActionToken token = ActionToken.decode(data);
-            switch (token.action()) {
-                case CANCEL -> bookingService.cancelAppointement(token.);
+        try {
+            if (value.hasCallbackQuery()) {
+                handleCallback(value);
+                return;
             }
+
+            handleMessage(value);
+        } catch (Exception e) {
+            log.error("Error processing updateId={}", value.getUpdateId(), e);
         }
+    }
 
+    private void handleCallback(Update update) {
+        UpdateHandlerContext ctx = updateService.getContext(update);
+        dispatch(ctx);
+    }
 
-
-
-        String userId = UpdateUtils.getUserId(value);
-        UpdateHandlerContext handlerContext = sessionService.getSessionByUserId(userId)
-                .map(s -> new UpdateHandlerContext(value, s))
-                .orElseGet(() -> new UpdateHandlerContext(value, sessionService.startSession(userId)));
-
-
-
-
-
+    private void handleMessage(Update update) {
+        UpdateHandlerContext ctx = updateService.getContext(update);
 
         LlmResult llmResult = llmService.ask(
                 PromptFactory.buildPrompt(),
-                handlerContext.text(),
+                ctx.messageText(),
                 LlmResult.class
-        );
-
-        UpdateHandlerContext newCtx = handlerContext.withSession(
-                handlerContext.session().withBookingDraft(
-                        handlerContext.session().bookingDraft().merge(llmResult.bookingDraft())
-                )
         );
 
         log.info("LLM response: {}", llmResult);
 
-        botMessageService.sendMessage(handlerContext.chatId(), llmResult.reply());
+        dispatch(ctx.withLlmResult(llmResult));
+    }
 
-        for (UpdateHandler handler : handlers) {
-            if (!handler.) {
-                continue;
-            }
-
-            if (handler.supports(handlerContext)) {
-                HandlerResult result = handler.handle(handlerContext);
-
-                sessionService.refreshSessionByUserId(handlerContext.userId());
-
-                if (result == HandlerResult.STOP) return;
-            }
-        }
-
-        log.warn("No handler found for updateId={}, state={}", value.getUpdateId(), handlerContext.sessionState());
+    private void dispatch(UpdateHandlerContext ctx) {
+        handlers.stream()
+                .filter(handler -> handler.supports(ctx))
+                .findFirst()
+                .ifPresentOrElse(
+                        handler -> {
+                            handler.handle(ctx);
+                            sessionService.refreshSession(ctx.session().id());
+                        },
+                        () -> log.warn("No handler for update={}, user={}",
+                                ctx.update(),
+                                ctx.userId())
+                );
     }
 }
-
-
-
-START,
-BOOKING,
-MY_BOOKINGS,
-CANCEL,
-HELP,
-SMALLTALK,
-UNKNOWN

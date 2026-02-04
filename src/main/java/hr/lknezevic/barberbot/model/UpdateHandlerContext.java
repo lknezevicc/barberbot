@@ -1,20 +1,28 @@
 package hr.lknezevic.barberbot.model;
 
-import hr.lknezevic.barberbot.enums.BarberBotCommand;
-import hr.lknezevic.barberbot.enums.SessionState;
+import hr.lknezevic.barberbot.enums.LlmIntent;
 import hr.lknezevic.barberbot.utils.UpdateUtils;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 public record UpdateHandlerContext(
         Update update,
-        Session session
+        Session session,
+        LlmResult llmResult
 ) {
-    public UpdateHandlerContext withSession(Session newSession) {
-        return new UpdateHandlerContext(update, newSession);
+    public boolean hasLlmResult() {
+        return llmResult != null;
     }
 
-    public SessionState sessionState() {
-        return session == null ? SessionState.NONE : session.sessionState();
+    public LlmIntent intent() {
+        return llmResult != null ? llmResult.intent() : LlmIntent.UNKNOWN;
+    }
+
+    public UpdateHandlerContext withSession(Session newSession) {
+        return new UpdateHandlerContext(update, newSession, llmResult);
+    }
+
+    public UpdateHandlerContext withLlmResult(LlmResult result) {
+        return new UpdateHandlerContext(update, session, result);
     }
 
     public Long chatId() {
@@ -25,14 +33,11 @@ public record UpdateHandlerContext(
         return UpdateUtils.getUserId(update);
     }
 
-    public String text() {
+    public String messageText() {
         return UpdateUtils.getMessageText(update);
     }
 
-    public boolean isCommand(BarberBotCommand command) {
-        String text = text();
-        if (text == null) return false;
-
-        return text.trim().split(" ")[0].equalsIgnoreCase("/" + command.getCommand());
+    public String llmReplyText() {
+        return llmResult != null ? llmResult.reply() : "";
     }
 }

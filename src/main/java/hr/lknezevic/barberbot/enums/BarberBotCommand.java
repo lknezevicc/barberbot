@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public enum BarberBotCommand {
     START("start", "Pokretanje bota..."),
-    BOOK("rezerviraj", "📅 Rezerviraj termin"),
     MY_BOOKINGS("my_bookings", "📖 Moji termini"),
     CANCEL("cancel", "Otkaži termin"),
     HELP("help", "ℹ️ Pomoć");

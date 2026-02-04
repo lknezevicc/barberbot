@@ -38,47 +38,48 @@ public class RedisQueue<T> implements Queue<T> {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final Class<T> clazz;
-    private final String queueKey;
-    private final String dlqKey;
-    private final String processedKey;
+    private final Function<T, String> queueKeyResolver;
     private final Duration processedTtl;
     private final Function<T, String> idExtractor;
 
     @Override
     @CircuitBreaker(name = "redisQueue")
     public void enqueue(T value) {
-        String processedKeyWithId = processedKey + ":" + idExtractor.apply(value);
+        final String id = idExtractor.apply(value);
+        final String queueKey = queueKeyResolver.apply(value);
+        final String processedKey = queueKey + ":processed:" + id;
 
         final String json;
         try {
             json = objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize {} with ID={}", clazz.getName(), idExtractor.apply(value), e);
+            log.error("Failed to serialize {} with ID={}", clazz.getName(), id, e);
             moveToDlq(value);
             return;
         }
 
         Long enqueued = redisTemplate.execute(
                 DEDUPE_AND_ENQUEUE,
-                List.of(processedKeyWithId, queueKey),
+                List.of(processedKey, queueKey),
                 String.valueOf(processedTtl.toSeconds()),
                 json
         );
 
         if (enqueued == 0L) {
-            log.debug("{} with ID={} already seen (dedupe), skipping enqueue", clazz.getName(), idExtractor.apply(value));
+            log.debug("{} with ID={} already seen (dedupe), skipping enqueue", clazz.getName(), id);
         }
     }
 
     @Override
     @CircuitBreaker(name = "redisQueue")
-    public Optional<T> dequeue(Duration timeout) {
-        String json = redisTemplate.opsForList().rightPop(queueKey, timeout);
+    public Optional<T> dequeue(String queueKey, Duration timeout) {
+        final String json = redisTemplate.opsForList().rightPop(queueKey, timeout);
         if (json == null) return Optional.empty();
 
         try {
             return Optional.of(objectMapper.readValue(json, clazz));
         } catch (JsonProcessingException e) {
+            String dlqKey = queueKey + ":dlq";
             log.error("Failed to deserialize {} from queue payload, moving to DLQ. payload={}", clazz.getName(), json, e);
             redisTemplate.opsForList().leftPush(dlqKey, json);
             redisTemplate.opsForList().trim(dlqKey, 0, DLQ_MAX_LEN - 1);
@@ -89,12 +90,13 @@ public class RedisQueue<T> implements Queue<T> {
     @Override
     @CircuitBreaker(name = "redisQueue")
     public void moveToDlq(T value) {
+        final String key = queueKeyResolver.apply(value) + ":dlq";
         try {
             String json = objectMapper.writeValueAsString(value);
-            redisTemplate.opsForList().leftPush(dlqKey, json);
-            redisTemplate.opsForList().trim(dlqKey, 0, DLQ_MAX_LEN - 1);
+            redisTemplate.opsForList().leftPush(key, json);
+            redisTemplate.opsForList().trim(key, 0, DLQ_MAX_LEN - 1);
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize {} for DLQ (queueKey={})", clazz.getName(), dlqKey, e);
+            log.error("Failed to serialize {} for DLQ (queueKey={})", clazz.getName(), key, e);
         }
     }
 }

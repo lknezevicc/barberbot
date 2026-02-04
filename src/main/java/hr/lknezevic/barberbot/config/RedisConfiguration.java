@@ -2,14 +2,16 @@ package hr.lknezevic.barberbot.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hr.lknezevic.barberbot.model.Session;
-import hr.lknezevic.barberbot.storage.KeyValueStore;
+import hr.lknezevic.barberbot.storage.ObjectValueStore;
 import hr.lknezevic.barberbot.storage.Queue;
-import hr.lknezevic.barberbot.storage.StringKeyValueStore;
-import hr.lknezevic.barberbot.storage.redis.RedisObjectValueStore;
-import hr.lknezevic.barberbot.storage.redis.RedisQueue;
-import hr.lknezevic.barberbot.storage.redis.RedisStringValueStore;
+import hr.lknezevic.barberbot.storage.StringSetStore;
+import hr.lknezevic.barberbot.storage.StringValueStore;
+import hr.lknezevic.barberbot.storage.redis.RedisFactory;
+import hr.lknezevic.barberbot.storage.redis.RedisLock;
+import hr.lknezevic.barberbot.utils.UpdateUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -21,6 +23,7 @@ import java.time.Duration;
 class RedisConfiguration {
 
     @Bean
+    @Primary
     RedisTemplate<String, String> defaultRedisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, String> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
@@ -41,43 +44,35 @@ class RedisConfiguration {
     }
 
     @Bean
-    Queue<Update> updateRedisQueue(
-            RedisTemplate<String, String> defaultRedisTemplate,
-            ObjectMapper defaultObjectMapper
-    ) {
-        String queueKey = "telegram:updates";
-        return new RedisQueue<>(
-                defaultRedisTemplate,
-                defaultObjectMapper,
+    Queue<Update> updateRedisQueue(RedisFactory redisFactory) {
+        return redisFactory.createQueue(
                 Update.class,
-                queueKey,
-                queueKey + ":dlq",
-                queueKey + ":processed",
+                (u -> "telegram:updates:user:" + UpdateUtils.getUserId(u)),
                 Duration.ofHours(6),
                 (u -> u.getUpdateId().toString())
         );
     }
 
     @Bean
-    KeyValueStore<Session> sessionRedisKeyValueStore(
-            RedisTemplate<String, String> defaultRedisTemplate,
-            ObjectMapper defaultObjectMapper
-    ) {
-        return new RedisObjectValueStore<>(
-                defaultRedisTemplate,
-                defaultObjectMapper,
-                "telegram:sessions:",
-                Session.class
+    ObjectValueStore<Session> sessionRedisKeyValueStore(RedisFactory redisFactory) {
+        return redisFactory.createObjectValueStore(
+                Session.class,
+                "telegram:sessions:"
         );
     }
 
     @Bean
-    StringKeyValueStore userSessionRedisStringKeyValueStore(
-            RedisTemplate<String, String> defaultRedisTemplate
-    ) {
-        return new RedisStringValueStore(
-                defaultRedisTemplate,
-                "telegram:user:"
-        );
+    StringValueStore userSessionRedisStringKeyValueStore(RedisFactory redisFactory) {
+        return redisFactory.createStringValueStore("telegram:user:");
+    }
+
+    @Bean
+    StringSetStore activeUserRedisStringSetStore(RedisFactory redisFactory) {
+        return redisFactory.createStringSetStore("telegram:active-users:");
+    }
+
+    @Bean
+    RedisLock redisLock(RedisTemplate<String, String> redisTemplate) {
+        return new RedisLock(redisTemplate);
     }
 }

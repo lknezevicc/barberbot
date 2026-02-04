@@ -1,7 +1,8 @@
 package hr.lknezevic.barberbot.signal;
 
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,8 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class ShutdownSignal {
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
-    @PreDestroy
-    void onShutdown() {
+    @EventListener(ContextClosedEvent.class)
+    void onContextClosed() {
+        log.info("Shutdown signal received - entering graceful shutdown");
         shuttingDown.set(true);
     }
 

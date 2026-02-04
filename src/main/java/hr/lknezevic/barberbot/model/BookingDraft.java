@@ -24,7 +24,10 @@ public record BookingDraft(
     }
 
     public boolean isComplete() {
-        return service != null && date.isBefore(LocalDate.now()) && time.isAfter(LocalTime.now()) && barber != null;
+        return service != null &&
+                date != null &&
+                time != null &&
+                barber != null;
     }
 
     public BookingDraft merge(BookingDraft incoming) {

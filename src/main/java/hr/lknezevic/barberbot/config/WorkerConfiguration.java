@@ -4,6 +4,8 @@ import hr.lknezevic.barberbot.config.application.WorkerConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
@@ -11,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 class WorkerConfiguration {
 
     @Bean(name = "updateTaskExecutor")
-    public ThreadPoolTaskExecutor updateTaskExecutor(WorkerConfig config) {
+    ThreadPoolTaskExecutor updateTaskExecutor(WorkerConfig config) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(config.count());
         executor.setMaxPoolSize(config.count());
@@ -21,5 +23,10 @@ class WorkerConfiguration {
         executor.setAwaitTerminationSeconds(5);
         executor.initialize();
         return executor;
+    }
+
+    @Bean
+    TaskExecutor virtualThreadTaskExecutor() {
+        return new VirtualThreadTaskExecutor();
     }
 }

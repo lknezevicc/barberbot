@@ -42,17 +42,17 @@ public final class BotMessageService {
         }
     }
 
-    public void sendWelcomeMessage(Long chatId, Session session) {
-        try {
-            SendMessage message = SendMessage.builder()
-                    .chatId(chatId)
-                    .text("Welcome to BarberBot! ✂️")
-                    .replyMarkup(ConstantsUtility.getMainMenu(session.id()))
-                    .build();
-
-            telegramGateway.execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send message to chatId={}", chatId, e);
-        }
-    }
+//    public void sendWelcomeMessage(Long chatId, Session session) {
+//        try {
+//            SendMessage message = SendMessage.builder()
+//                    .chatId(chatId)
+//                    .text("Welcome to BarberBot! ✂️")
+//                    .replyMarkup(ConstantsUtility.getMainMenu(session.id()))
+//                    .build();
+//
+//            telegramGateway.execute(message);
+//        } catch (TelegramApiException e) {
+//            log.error("Failed to send message to chatId={}", chatId, e);
+//        }
+//    }
 }

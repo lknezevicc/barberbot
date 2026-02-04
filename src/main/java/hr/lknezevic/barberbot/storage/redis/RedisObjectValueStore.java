@@ -2,7 +2,7 @@ package hr.lknezevic.barberbot.storage.redis;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hr.lknezevic.barberbot.storage.KeyValueStore;
+import hr.lknezevic.barberbot.storage.ObjectValueStore;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +14,12 @@ import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
-public class RedisObjectValueStore<T> implements KeyValueStore<T> {
+public class RedisObjectValueStore<T> implements ObjectValueStore<T> {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
-    private final String keyPrefix;
     private final Class<T> clazz;
+    private final String keyPrefix;
 
     @Override
     @CircuitBreaker(name = "redisValue")
@@ -57,7 +57,7 @@ public class RedisObjectValueStore<T> implements KeyValueStore<T> {
                     "Failed to deserialize value of type={} for key={}. Deleting corrupted entry.",
                     clazz.getName(), redisKey, e
             );
-            delete(redisKey);
+            delete(key);
             return Optional.empty();
         }
     }
@@ -66,7 +66,7 @@ public class RedisObjectValueStore<T> implements KeyValueStore<T> {
     @CircuitBreaker(name = "redisValue")
     public void delete(String key) {
         try {
-            redisTemplate.delete(key);
+            redisTemplate.delete(keyPrefix + key);
         } catch (Exception e) {
             log.warn("Redis delete failed for key={}", key, e);
         }
@@ -81,6 +81,20 @@ public class RedisObjectValueStore<T> implements KeyValueStore<T> {
         } catch (Exception e) {
             log.warn("Redis exists check failed for key={}", redisKey, e);
             return false;
+        }
+    }
+
+    @Override
+    @CircuitBreaker(name = "redisValue")
+    public void refreshTTL(String key, Duration ttl) {
+        final String redisKey = keyPrefix + key;
+        try {
+            Boolean success = redisTemplate.expire(redisKey, ttl);
+            if (success == null || !success) {
+                log.warn("Failed to refresh TTL for key={}", redisKey);
+            }
+        } catch (Exception e) {
+            log.warn("Redis refreshTTL failed for key={}", redisKey, e);
         }
     }
 }

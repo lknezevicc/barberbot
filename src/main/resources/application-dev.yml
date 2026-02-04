@@ -20,6 +20,7 @@ telegram:
   bot-username: ${TELEGRAM_BOT_USERNAME}
   bot-token: ${TELEGRAM_BOT_TOKEN}
   secret-token: ${TELEGRAM_SECRET_TOKEN}
+  action-token-secret: ${TELEGRAM_ACTION_TOKEN_SECRET}
 
 app:
   enabled: true

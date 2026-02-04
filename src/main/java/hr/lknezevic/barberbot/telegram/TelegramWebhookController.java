@@ -1,6 +1,8 @@
 package hr.lknezevic.barberbot.telegram;
 
 import hr.lknezevic.barberbot.storage.Queue;
+import hr.lknezevic.barberbot.storage.StringSetStore;
+import hr.lknezevic.barberbot.utils.UpdateUtils;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,11 +21,18 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 @RequiredArgsConstructor
 public final class TelegramWebhookController {
     private final Queue<Update> updateRedisQueue;
+    private final StringSetStore activeUserSetStore;
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> onUpdate(@RequestBody Update update) {
         try {
-            updateRedisQueue.enqueue(update);
+            final String userId = UpdateUtils.getUserId(update);
+
+            if (userId != null) {
+                activeUserSetStore.add(userId);
+                updateRedisQueue.enqueue(update);
+            }
+
             return ResponseEntity.ok().build();
         } catch (CallNotPermittedException | DataAccessException e) {
             log.warn("Enqueue failed, returning 503 to trigger Telegram retry. updateId={}, cause={}",

@@ -1,22 +1,17 @@
 package hr.lknezevic.barberbot.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @Service
+@RequiredArgsConstructor
 public final class BookingService {
 
-    public final static Map<String, String> tempMemory = new HashMap<>();
+    private final ActionTokenService actionTokenService;
+    private final BotMessageService botMessageService;
 
-
-    public boolean cancelAppointment(String appointmentId) {
+    public void sendAppointmentProposal() {
 
     }
-
-
-
-
 
 }

@@ -1,10 +1,9 @@
 package hr.lknezevic.barberbot.service;
 
-import hr.lknezevic.barberbot.enums.SessionState;
+import hr.lknezevic.barberbot.model.BookingDraft;
 import hr.lknezevic.barberbot.model.Session;
-import hr.lknezevic.barberbot.storage.KeyValueStore;
-import hr.lknezevic.barberbot.storage.StringKeyValueStore;
-import hr.lknezevic.barberbot.utils.ConstantsUtility;
+import hr.lknezevic.barberbot.storage.ObjectValueStore;
+import hr.lknezevic.barberbot.storage.StringValueStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,21 +18,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SessionService {
 
-    private static final Duration SESSION_TTL = Duration.ofMinutes(ConstantsUtility.SESSION_TTL_MINUTES);
-    private final KeyValueStore<Session> sessionRedisKeyValueStore;
-    private final StringKeyValueStore userSessionRedisStringKeyValueStore;
+    private static final Duration SESSION_TTL = Duration.ofMinutes(10);
+    private final ObjectValueStore<Session> sessionRedisObjectValueStore;
+    private final StringValueStore userSessionRedisStringValueStore;
+
+    public void updateSessionBookingDraft(Session session, BookingDraft bookingDraft) {
+        Session updatedSession = session.withBookingDraft(bookingDraft);
+        sessionRedisObjectValueStore.save(updatedSession.id(), updatedSession, SESSION_TTL);
+    }
 
     public Session startSession(String userId) {
         Session session = new Session(
-                SessionState.NONE,
                 UUID.randomUUID().toString(),
                 userId,
+                null,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );
 
-        sessionRedisKeyValueStore.save(session.id(), session, SESSION_TTL);
-        userSessionRedisStringKeyValueStore.save(
+        sessionRedisObjectValueStore.save(session.id(), session, SESSION_TTL);
+        userSessionRedisStringValueStore.save(
                 userId + ":session",
                 session.id(),
                 SESSION_TTL);
@@ -41,44 +45,21 @@ public class SessionService {
         return session;
     }
 
-    public void refreshSession(Session session) {
-        Session refreshedSession = new Session(
-                session.sessionState(),
-                session.id(),
-                session.userId(),
-                session.createdAt(),
-                LocalDateTime.now()
-        );
-
-        sessionRedisKeyValueStore.save(refreshedSession.id(), refreshedSession, SESSION_TTL);
-        userSessionRedisStringKeyValueStore.save(
-                refreshedSession.userId() + ":session",
-                session.id(),
-                SESSION_TTL);
+    public void refreshSession(String sessionId) {
+        sessionRedisObjectValueStore.refreshTTL(sessionId, SESSION_TTL);
     }
 
     public void refreshSessionByUserId(String userId) {
         if (userId == null) return;
-        getSessionByUserId(userId).ifPresent(this::refreshSession);
-    }
-
-    public Session setSessionState(Session session, SessionState newState) {
-        Session updated = session.withSessionState(newState);
-        sessionRedisKeyValueStore.save(updated.id(), updated, SESSION_TTL);
-        userSessionRedisStringKeyValueStore.save(
-                updated.userId() + ":session",
-                updated.id(),
-                SESSION_TTL
-        );
-        return updated;
+        getSessionByUserId(userId).ifPresent(session -> refreshSession(session.id()));
     }
 
     public Optional<Session> getSession(String sessionId) {
-        return sessionRedisKeyValueStore.get(sessionId);
+        return sessionRedisObjectValueStore.get(sessionId);
     }
 
     public Optional<Session> getSessionByUserId(String userId) {
-        return userSessionRedisStringKeyValueStore
+        return userSessionRedisStringValueStore
                 .get(userId + ":session")
                 .flatMap(this::getSession);
     }

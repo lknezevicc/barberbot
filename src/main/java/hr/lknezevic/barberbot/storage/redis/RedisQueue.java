@@ -99,4 +99,14 @@ public class RedisQueue<T> implements Queue<T> {
             log.error("Failed to serialize {} for DLQ (queueKey={})", clazz.getName(), key, e);
         }
     }
+
+    @Override
+    public Long size(String key) {
+        try {
+            return redisTemplate.opsForList().size(key);
+        } catch (Exception e) {
+            log.error("Failed to fetch size for {}", key, e);
+            return 0L;
+        }
+    }
 }

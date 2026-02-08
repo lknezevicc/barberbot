@@ -52,7 +52,7 @@ public class UpdateHandlerPipeline implements HandlerPipeline<Update> {
 
         log.info("LLM response: {}", llmResult);
 
-        dispatch(ctx.withLlmResult(llmResult));
+        dispatch(updateService.mergeWithLlmResult(ctx, llmResult));
     }
 
     private void dispatch(UpdateHandlerContext ctx) {

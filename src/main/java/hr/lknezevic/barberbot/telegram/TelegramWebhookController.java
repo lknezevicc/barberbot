@@ -18,11 +18,13 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 @RequestMapping("/telegram")
 @RequiredArgsConstructor
 public final class TelegramWebhookController {
+
     private final UpdateService updateService;
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> onUpdate(@RequestBody Update update) {
         try {
+            log.info("onUpdate {}", update);
             updateService.enqueue(update);
             return ResponseEntity.ok().build();
         } catch (CallNotPermittedException | DataAccessException e) {

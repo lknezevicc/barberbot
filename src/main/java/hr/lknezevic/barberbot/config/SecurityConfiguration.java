@@ -24,8 +24,7 @@ class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/telegram/webhook").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(telegramTokenFilter, UsernamePasswordAuthenticationFilter.class
-        );
+                .addFilterBefore(telegramTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

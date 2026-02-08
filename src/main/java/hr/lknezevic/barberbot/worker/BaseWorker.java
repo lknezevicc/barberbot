@@ -26,7 +26,8 @@ public abstract class BaseWorker<T> implements Worker {
             Supplier<Boolean> runningSupplier,
             Supplier<T> itemSupplier,
             Consumer<T> itemConsumer,
-            int backoffMs) {
+            int backoffMs
+    ) {
         while (runningSupplier.get() && !Thread.currentThread().isInterrupted()) {
             final T item;
             try {

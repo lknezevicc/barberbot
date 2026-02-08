@@ -7,4 +7,5 @@ public interface Queue<T> {
     void enqueue(T value);
     Optional<T> dequeue(String queueKey, Duration timeout);
     void moveToDlq(T value);
+    Long size(String key);
 }

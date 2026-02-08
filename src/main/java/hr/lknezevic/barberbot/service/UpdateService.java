@@ -13,14 +13,13 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public final class UpdateService {
 
-    private static final String ACTIVE_USERS_SET_KEY_PREFIX = "telegram:active-users:";
+    private static final String ACTIVE_USERS_SET_KEY = "telegram:active-users";
     private static final String USER_QUEUE_KEY_PREFIX = "telegram:updates:user:";
     private static final DefaultRedisScript<Long> ENQUEUE_SCRIPT = new DefaultRedisScript<>(
             """
@@ -59,6 +58,7 @@ public final class UpdateService {
 
     public void enqueue(Update update) {
         final String userId = UpdateUtils.getUserId(update);
+        log.info("enqueue {}", userId);
         if (userId == null) return;
 
         final String json;
@@ -70,8 +70,8 @@ public final class UpdateService {
         }
 
         String queueKey = USER_QUEUE_KEY_PREFIX + userId;
-        String activeUserKey = ACTIVE_USERS_SET_KEY_PREFIX + userId;
 
-        redisTemplate.execute(ENQUEUE_SCRIPT, List.of(queueKey, activeUserKey), UUID.randomUUID().toString(), json);
+        var result = redisTemplate.execute(ENQUEUE_SCRIPT, List.of(ACTIVE_USERS_SET_KEY, queueKey), userId, json);
+        log.info("enqueue {}", result);
     }
 }

@@ -68,7 +68,7 @@ class RedisConfiguration {
 
     @Bean
     StringSetStore activeUserRedisStringSetStore(RedisFactory redisFactory) {
-        return redisFactory.createStringSetStore("telegram:active-users:");
+        return redisFactory.createStringSetStore("telegram:active-users");
     }
 
     @Bean

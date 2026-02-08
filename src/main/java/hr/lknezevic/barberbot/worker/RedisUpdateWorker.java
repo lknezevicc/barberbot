@@ -1,11 +1,11 @@
 package hr.lknezevic.barberbot.worker;
 
 import hr.lknezevic.barberbot.handler.HandlerPipeline;
+import hr.lknezevic.barberbot.model.LockedUpdate;
 import hr.lknezevic.barberbot.signal.ShutdownSignal;
 import hr.lknezevic.barberbot.storage.Queue;
 import hr.lknezevic.barberbot.storage.StringSetStore;
 import hr.lknezevic.barberbot.storage.redis.RedisLock;
-import hr.lknezevic.barberbot.utils.UpdateUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -23,18 +23,18 @@ import java.util.function.Supplier;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Primary
-public final class RedisUpdateWorker extends BaseWorker<Update> {
+public final class RedisUpdateWorker extends BaseWorker<LockedUpdate> {
 
     private final static String TELEGRAM_UPDATE_QUEUE_KEY = "telegram:updates:user:";
-    private final static long REDIS_LOCK_TTL_SECONDS = 8;
+    private final static long REDIS_LOCK_TTL_SECONDS = 30;
 
     private final TaskExecutor taskExecutor;
     private final RedisLock redisLock;
     private final Queue<Update> redisQueue;
     private final StringSetStore activeUserSetStore;
     private final HandlerPipeline<Update> updateHandlerPipeline;
-    private final Supplier<Update> itemSupplier = this::fetchUpdate;
-    private final Consumer<Update> itemConsumer = this::processUpdate;
+    private final Supplier<LockedUpdate> itemSupplier = this::fetchUpdate;
+    private final Consumer<LockedUpdate> itemConsumer = this::processUpdate;
 
     public RedisUpdateWorker(
             ShutdownSignal shutdownSignal,
@@ -55,12 +55,36 @@ public final class RedisUpdateWorker extends BaseWorker<Update> {
         run(runningSupplier, itemSupplier, itemConsumer, DEFAULT_BACKOFF_MS);
     }
 
-    private Update fetchUpdate() {
-        String userId = activeUserSetStore.pop().orElse(null);
+    private LockedUpdate fetchUpdate() {
+        final String userId = activeUserSetStore.pop().orElse(null);
         if  (userId == null) return null;
 
+        final String token;
         try {
-            return redisQueue.dequeue(TELEGRAM_UPDATE_QUEUE_KEY + userId, Duration.ofSeconds(3)).orElse(null);
+            token = redisLock.acquire(userId, REDIS_LOCK_TTL_SECONDS);
+        } catch (Exception e) {
+            if (shutdownSignal.isShuttingDown()) return null;
+            log.warn("Error fetching userId from active-users list, backing off {}ms", DEFAULT_BACKOFF_MS, e);
+            backoff(DEFAULT_BACKOFF_MS);
+            return null;
+        }
+
+        if (token == null) {
+            activeUserSetStore.add(userId);
+            backoff(50);
+            return null;
+        }
+
+        try {
+            Update update = redisQueue
+                    .dequeue(TELEGRAM_UPDATE_QUEUE_KEY + userId, Duration.ofSeconds(3))
+                    .orElse(null);
+            if (update == null) {
+                redisLock.release(userId, token);
+                return null;
+            }
+
+            return new LockedUpdate(update, token, userId);
         } catch (Exception e) {
             log.info("SHUTDOWN SIGNAL: " + shutdownSignal.isShuttingDown());
             if (shutdownSignal.isShuttingDown()) return null;
@@ -70,24 +94,26 @@ public final class RedisUpdateWorker extends BaseWorker<Update> {
         }
     }
 
-    private void processUpdate(Update update) {
-        final String userId = UpdateUtils.getUserId(update);
-        if (userId == null) return;
-
-        final String token = redisLock.acquire(userId, REDIS_LOCK_TTL_SECONDS);
-        if (token == null) return;
-
+    private void processUpdate(LockedUpdate lockedUpdate) {
+        final Update update = lockedUpdate.update();
         taskExecutor.execute(() -> {
             try {
                 log.info("Processing update {} in thread {}", update.getUpdateId(), Thread.currentThread().getName());
                 updateHandlerPipeline.process(update);
             } catch (Exception e) {
                 log.error("Handler failed for updateId={}, moving to DLQ", update.getUpdateId(), e);
-                redisQueue.moveToDlq(update);
+                try {
+                    redisQueue.moveToDlq(update);
+                } catch (Exception dlqEx) {
+                    log.error("Failed to move update to DLQ", dlqEx);
+                }
             } finally {
-                redisLock.release(userId, token);
+                redisLock.release(lockedUpdate.userId(), lockedUpdate.token());
+
+                if (redisQueue.size(TELEGRAM_UPDATE_QUEUE_KEY + lockedUpdate.userId()) > 0) {
+                    activeUserSetStore.add(lockedUpdate.userId());
+                }
             }
         });
     }
-
 }

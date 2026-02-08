@@ -1,6 +1,7 @@
 package hr.lknezevic.barberbot.storage.redis;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
@@ -8,6 +9,7 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @RequiredArgsConstructor
 public final class RedisLock {
 
@@ -32,6 +34,7 @@ public final class RedisLock {
     }
 
     public boolean release(String userId, String token) {
+        log.info("[RELEASE] userId: {}, token: {}", userId, token);
         String lockKey = "telegram:updates:user:" + userId + ":lock";
         Long result = redisTemplate.execute(RELEASE_LOCK_SCRIPT, Arrays.asList(lockKey, token));
         return Long.valueOf(1).equals(result);

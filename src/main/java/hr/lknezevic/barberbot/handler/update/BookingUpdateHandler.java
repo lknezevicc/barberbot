@@ -2,10 +2,7 @@ package hr.lknezevic.barberbot.handler.update;
 
 import hr.lknezevic.barberbot.enums.LlmIntent;
 import hr.lknezevic.barberbot.model.UpdateHandlerContext;
-import hr.lknezevic.barberbot.service.ActionTokenService;
-import hr.lknezevic.barberbot.service.BookingService;
-import hr.lknezevic.barberbot.service.BotMessageService;
-import hr.lknezevic.barberbot.service.SessionService;
+import hr.lknezevic.barberbot.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +14,7 @@ public class BookingUpdateHandler implements UpdateHandler {
     private final ActionTokenService actionTokenService;
     private final BotMessageService botMessageService;
     private final SessionService sessionService;
+    private final UpdateService updateService;
 
     @Override
     public boolean supports(UpdateHandlerContext value) {

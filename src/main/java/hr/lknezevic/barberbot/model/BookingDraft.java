@@ -1,5 +1,7 @@
 package hr.lknezevic.barberbot.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -23,6 +25,7 @@ public record BookingDraft(
         return emptyFields;
     }
 
+    @JsonIgnore
     public boolean isComplete() {
         return service != null &&
                 date != null &&

@@ -1,1 +1,23 @@
-# Populated in Commit 7
+server:
+  port: 8083
+
+spring:
+  application:
+    name: reply-service
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+reply:
+  telegram:
+    bot-name: ${TELEGRAM_BOT_NAME}
+    bot-username: ${TELEGRAM_BOT_USERNAME}
+    bot-token: ${TELEGRAM_BOT_TOKEN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

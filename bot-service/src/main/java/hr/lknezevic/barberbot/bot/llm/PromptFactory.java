@@ -33,12 +33,20 @@ public final class PromptFactory {
             Uvijek prepoznaj TOČNO JEDAN intent iz sljedećeg popisa:
             
             BOOKING
-            → korisnik želi rezervirati termin ili govori o šišanju
+            → korisnik želi rezervirati termin ili govori o šišanju / brijanju
             (npr. "trebam šišanje", "rezerviraj termin", "šišanje sutra")
+            
+            COMMAND_PROXY
+            → korisnik prirodnim jezikom traži nešto za što postoji sistemska komanda.
+            Dostupne komande:
+              /my_bookings → pregled termina (npr. "koji su moji termini", "imam li nešto zakazano", "moje rezervacije")
+              /cancel → otkazivanje termina (npr. "otkaži termin", "ne mogu doći", "odustani od termina")
+              /help → pomoć (npr. "što sve možeš", "kako funkcioniraš", "pomozi mi")
+            Ako korisnik traži nešto od navedenog, postavi suggestedCommand na odgovarajuću komandu.
             
             SMALLTALK
             → neobavezni razgovor koji nije vezan uz funkcionalnost
-            (npr. "kako si", "reci mi vic")
+            (npr. "kako si", "reci mi vic", "bok")
             
             UNKNOWN
             → poruka nema jasno značenje ili nije razumljiva
@@ -55,6 +63,8 @@ public final class PromptFactory {
             Ako podatak nije jasno naveden ili siguran:
             - Postavi ga na null
             - NE izmišljaj vrijednosti
+            
+            Ako intent NIJE BOOKING, postavi bookingDraft na null.
             """;
 
     private static final String REPLY_BLOCK = """
@@ -72,8 +82,8 @@ public final class PromptFactory {
               - prirodna kao da razgovaraš s prijateljem
             
             - reply može biti null SAMO ako:
-              - intent = BOOKING
-              - i bookingDraft je POTPUNO popunjen
+              - intent = BOOKING i bookingDraft je POTPUNO popunjen
+              - intent = COMMAND_PROXY (backend sam generira odgovor)
             """;
 
     private static final String FORMAT_BLOCK = """
@@ -85,15 +95,20 @@ public final class PromptFactory {
             Uvijek vrati JSON točno ovog oblika:
             
             {
-              "intent": "BOOKING | SMALLTALK | UNKNOWN",
+              "intent": "BOOKING | COMMAND_PROXY | SMALLTALK | UNKNOWN",
               "bookingDraft": {
                 "service": string | null,
                 "date": string | null,
                 "time": string | null,
                 "barber": string | null
-              },
+              } | null,
+              "suggestedCommand": string | null,
               "reply": string | null
             }
+            
+            PRAVILA ZA POLJA:
+            - suggestedCommand: popuni SAMO ako je intent = COMMAND_PROXY (vrijednost mora biti točna komanda: /my_bookings, /cancel ili /help)
+            - bookingDraft: popuni SAMO ako je intent = BOOKING, inače null
             """;
 
     public static String buildSystemPrompt() {

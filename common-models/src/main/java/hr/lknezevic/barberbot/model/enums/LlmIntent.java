@@ -1,11 +1,8 @@
 package hr.lknezevic.barberbot.model.enums;
 
 public enum LlmIntent {
-    START,
     BOOKING,
-    MY_BOOKINGS,
-    CANCEL,
-    HELP,
+    COMMAND_PROXY,
     SMALLTALK,
     UNKNOWN
 }

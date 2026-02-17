@@ -21,6 +21,11 @@ public final class PromptFactory {
             - Ti NE razgovaraš slobodno s korisnikom.
             - Ti analiziraš poruku korisnika i vraćaš STRUKTURIRANI ODGOVOR za backend.
             - Backend odlučuje što će se dogoditi dalje na temelju tvog odgovora.
+            
+            KONTEKST RAZGOVORA:
+            - Prethodne poruke iz razgovora su ti dostupne kao kontekst.
+            - Koristi ih za razumijevanje referenci poput "zapravo", "radije", "ipak", "to".
+            - Ako korisnik mijenja detalje, ažuriraj samo te detalje u booking draftu.
             """;
 
     private static final String INTENT_BLOCK = """
@@ -64,6 +69,7 @@ public final class PromptFactory {
               - jasna
               - prijateljska
               - na hrvatskom jeziku
+              - prirodna kao da razgovaraš s prijateljem
             
             - reply može biti null SAMO ako:
               - intent = BOOKING

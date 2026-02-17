@@ -5,6 +5,8 @@ import hr.lknezevic.barberbot.bot.handler.router.IntentRouter;
 import hr.lknezevic.barberbot.bot.llm.LlmService;
 import hr.lknezevic.barberbot.bot.llm.PromptFactory;
 import hr.lknezevic.barberbot.bot.publisher.ReplyPublisher;
+import hr.lknezevic.barberbot.bot.service.ConversationEntry;
+import hr.lknezevic.barberbot.bot.service.ConversationHistoryService;
 import hr.lknezevic.barberbot.bot.service.SessionService;
 import hr.lknezevic.barberbot.model.dto.InboundMessage;
 import hr.lknezevic.barberbot.model.dto.LlmResult;
@@ -17,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class MessageProcessor {
     private static final String ERROR_REPLY = "Nažalost, došlo je do greške. Pokušaj ponovo.";
 
     private final SessionService sessionService;
+    private final ConversationHistoryService conversationHistoryService;
     private final LlmService llmService;
     private final CommandRouter commandRouter;
     private final IntentRouter intentRouter;
@@ -51,6 +56,11 @@ public class MessageProcessor {
                 sessionService.refreshSession(session.id());
             }
 
+            if (message.messageType() == MessageType.TEXT && message.text() != null) {
+                conversationHistoryService.append(message.userId(), ConversationEntry.user(message.text()));
+                conversationHistoryService.append(message.userId(), ConversationEntry.assistant(action.text()));
+            }
+
             publishReply(message.tenantId(), action);
 
         } catch (Exception e) {
@@ -70,9 +80,12 @@ public class MessageProcessor {
     }
 
     private ReplyAction handleText(InboundMessage message, Session session) {
+        List<ConversationEntry> history = conversationHistoryService.getHistory(message.userId());
+
         LlmResult llmResult = llmService.ask(
                 PromptFactory.buildSystemPrompt(),
                 message.text(),
+                history,
                 LlmResult.class
         );
 
@@ -90,7 +103,6 @@ public class MessageProcessor {
     }
 
     private ReplyAction handleCallback(InboundMessage message, Session session) {
-        // TODO: implement callback handling (action tokens) when booking-service is ready
         log.info("Callback received from userId={}, data={}", message.userId(), message.callbackData());
         return ReplyAction.of(message.chatId(), "Ova akcija još nije podržana.");
     }

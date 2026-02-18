@@ -41,6 +41,10 @@ public class LlmResponseSanitizer {
             throw new LlmResponseException("LLM returned empty response");
         }
 
+        if (raw.contains(PromptFactory.CANARY_TOKEN)) {
+            throw new LlmResponseException("Canary token leaked in LLM response — possible prompt injection");
+        }
+
         String json = stripCodeFences(raw.trim());
 
         JsonNode root;

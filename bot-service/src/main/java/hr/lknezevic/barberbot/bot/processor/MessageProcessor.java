@@ -2,6 +2,7 @@ package hr.lknezevic.barberbot.bot.processor;
 
 import hr.lknezevic.barberbot.bot.handler.router.CommandRouter;
 import hr.lknezevic.barberbot.bot.handler.router.IntentRouter;
+import hr.lknezevic.barberbot.bot.llm.InputSanitizer;
 import hr.lknezevic.barberbot.bot.llm.LlmService;
 import hr.lknezevic.barberbot.bot.llm.PromptFactory;
 import hr.lknezevic.barberbot.bot.publisher.ReplyPublisher;
@@ -30,6 +31,7 @@ public class MessageProcessor {
 
     private final SessionService sessionService;
     private final ConversationHistoryService conversationHistoryService;
+    private final InputSanitizer inputSanitizer;
     private final LlmService llmService;
     private final CommandRouter commandRouter;
     private final IntentRouter intentRouter;
@@ -80,11 +82,17 @@ public class MessageProcessor {
     }
 
     private ReplyAction handleText(InboundMessage message, Session session) {
+        InputSanitizer.SanitizationResult sanitized = inputSanitizer.sanitize(message.text());
+
+        if (sanitized.injectionSuspected()) {
+            log.warn("Prompt injection suspected for userId={}, flagging to LLM", message.userId());
+        }
+
         List<ConversationEntry> history = conversationHistoryService.getHistory(message.userId());
 
         LlmResult llmResult = llmService.ask(
                 PromptFactory.buildSystemPrompt(),
-                message.text(),
+                sanitized.text(),
                 history,
                 LlmResult.class
         );

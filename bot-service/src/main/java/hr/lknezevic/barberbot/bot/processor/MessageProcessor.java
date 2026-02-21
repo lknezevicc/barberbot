@@ -9,15 +9,20 @@ import hr.lknezevic.barberbot.bot.publisher.ReplyPublisher;
 import hr.lknezevic.barberbot.bot.service.ConversationEntry;
 import hr.lknezevic.barberbot.bot.service.ConversationHistoryService;
 import hr.lknezevic.barberbot.bot.service.SessionService;
+import hr.lknezevic.barberbot.model.config.RabbitQueues;
+import hr.lknezevic.barberbot.model.dto.BookingDraft;
 import hr.lknezevic.barberbot.model.dto.InboundMessage;
 import hr.lknezevic.barberbot.model.dto.LlmResult;
 import hr.lknezevic.barberbot.model.dto.ReplyAction;
 import hr.lknezevic.barberbot.model.dto.Session;
 import hr.lknezevic.barberbot.model.enums.BotCommand;
 import hr.lknezevic.barberbot.model.enums.MessageType;
+import hr.lknezevic.barberbot.model.enums.SessionState;
+import hr.lknezevic.barberbot.model.event.BookingRequestEvent;
 import hr.lknezevic.barberbot.model.event.TelegramReplyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -36,6 +41,7 @@ public class MessageProcessor {
     private final CommandRouter commandRouter;
     private final IntentRouter intentRouter;
     private final ReplyPublisher replyPublisher;
+    private final RabbitTemplate rabbitTemplate;
 
     public void process(InboundMessage message) {
         try {
@@ -111,12 +117,63 @@ public class MessageProcessor {
     }
 
     private ReplyAction handleCallback(InboundMessage message, Session session) {
-        log.info("Callback received from userId={}, data={}", message.userId(), message.callbackData());
-        return ReplyAction.of(message.chatId(), "Ova akcija još nije podržana.");
+        String data = message.callbackData();
+        log.info("Callback received from userId={}, data={}", message.userId(), data);
+
+        if (data == null) {
+            return ReplyAction.of(message.chatId(), "Nevažeći odabir.");
+        }
+
+        return switch (data) {
+            case "booking:confirm" -> handleBookingConfirm(message, session);
+            case "booking:cancel" -> handleBookingCancel(message, session);
+            default -> {
+                if (data.startsWith("cancel:")) {
+                    yield handleCancelSpecificBooking(message, session, data);
+                }
+                yield ReplyAction.of(message.chatId(), "Nepoznata akcija.");
+            }
+        };
+    }
+
+    private ReplyAction handleBookingConfirm(InboundMessage message, Session session) {
+        if (session.state() != SessionState.CONFIRMING || session.bookingDraft() == null) {
+            return ReplyAction.of(message.chatId(), "Nema aktivne rezervacije za potvrdu.");
+        }
+
+        BookingDraft draft = session.bookingDraft();
+        BookingRequestEvent event = new BookingRequestEvent(
+                message.userId(), message.chatId(),
+                draft.service(), draft.date(), draft.time(), draft.barber()
+        );
+
+        rabbitTemplate.convertAndSend(
+                RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
+
+        Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
+        return ReplyAction.of(message.chatId(),
+                "Termin je potvrđen! " + draft.service() + " kod " + draft.barber()
+                        + " na " + draft.date() + " u " + draft.time() + ". Vidimo se!",
+                reset);
+    }
+
+    private ReplyAction handleBookingCancel(InboundMessage message, Session session) {
+        Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
+        return ReplyAction.of(message.chatId(), "Rezervacija je otkazana. Kako ti još mogu pomoći?", reset);
+    }
+
+    private ReplyAction handleCancelSpecificBooking(InboundMessage message, Session session, String data) {
+        log.info("Cancel specific booking callback: {}", data);
+        return ReplyAction.of(message.chatId(), "Otkazivanje u tijeku...");
     }
 
     private void publishReply(String tenantId, ReplyAction action) {
-        TelegramReplyEvent event = TelegramReplyEvent.of(tenantId, action.chatId(), action.text());
+        TelegramReplyEvent event;
+        if (action.buttons() != null && !action.buttons().isEmpty()) {
+            event = TelegramReplyEvent.withButtons(tenantId, action.chatId(), action.text(), action.buttons());
+        } else {
+            event = TelegramReplyEvent.of(tenantId, action.chatId(), action.text());
+        }
         replyPublisher.publish(event);
     }
 }

@@ -2,12 +2,15 @@ package hr.lknezevic.barberbot.bot.handler.intent;
 
 import hr.lknezevic.barberbot.model.dto.BookingDraft;
 import hr.lknezevic.barberbot.model.dto.InboundMessage;
+import hr.lknezevic.barberbot.model.dto.InlineButton;
 import hr.lknezevic.barberbot.model.dto.LlmResult;
 import hr.lknezevic.barberbot.model.dto.ReplyAction;
 import hr.lknezevic.barberbot.model.dto.Session;
 import hr.lknezevic.barberbot.model.enums.LlmIntent;
 import hr.lknezevic.barberbot.model.enums.SessionState;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class BookingIntentHandler implements IntentHandler {
@@ -31,11 +34,19 @@ public class BookingIntentHandler implements IntentHandler {
                 .withState(SessionState.BOOKING);
 
         if (merged.isComplete()) {
-            return ReplyAction.of(
+            String summary = merged.service() + " kod " + merged.barber()
+                    + " na " + merged.date() + " u " + merged.time();
+
+            List<InlineButton> buttons = List.of(
+                    new InlineButton("Potvrdi", "booking:confirm"),
+                    new InlineButton("Odustani", "booking:cancel")
+            );
+
+            return ReplyAction.withButtons(
                     message.chatId(),
-                    "Rezervirano: " + merged.service() + " kod " + merged.barber()
-                            + " na " + merged.date() + " u " + merged.time() + ". Hvala!",
-                    updated.withState(SessionState.CONFIRMING)
+                    summary + "\n\nPotvrđuješ?",
+                    updated.withState(SessionState.CONFIRMING),
+                    buttons
             );
         }
 

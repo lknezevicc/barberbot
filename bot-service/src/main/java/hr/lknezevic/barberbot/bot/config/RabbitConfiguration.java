@@ -45,6 +45,84 @@ class RabbitConfiguration {
     }
 
     @Bean
+    Queue bookingRequestQueue() {
+        return new Queue(RabbitQueues.BOOKING_REQUEST_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingRequestBinding(Queue bookingRequestQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingRequestQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_REQUEST_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingConfirmedQueue() {
+        return new Queue(RabbitQueues.BOOKING_CONFIRMED_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingConfirmedBinding(Queue bookingConfirmedQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingConfirmedQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_CONFIRMED_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingListRequestQueue() {
+        return new Queue(RabbitQueues.BOOKING_LIST_REQUEST_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingListRequestBinding(Queue bookingListRequestQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingListRequestQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_LIST_REQUEST_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingListResponseQueue() {
+        return new Queue(RabbitQueues.BOOKING_LIST_RESPONSE_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingListResponseBinding(Queue bookingListResponseQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingListResponseQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_LIST_RESPONSE_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingCancelRequestQueue() {
+        return new Queue(RabbitQueues.BOOKING_CANCEL_REQUEST_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingCancelRequestBinding(Queue bookingCancelRequestQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingCancelRequestQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingCancelledQueue() {
+        return new Queue(RabbitQueues.BOOKING_CANCELLED_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingCancelledBinding(Queue bookingCancelledQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingCancelledQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_CANCELLED_ROUTING_KEY);
+    }
+
+    @Bean
     MessageConverter jackson2JsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }

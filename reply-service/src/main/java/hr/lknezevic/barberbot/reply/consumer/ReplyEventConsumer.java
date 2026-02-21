@@ -18,10 +18,13 @@ public class ReplyEventConsumer {
 
     @RabbitListener(queues = RabbitQueues.REPLY_OUTBOUND_QUEUE)
     public void onReplyEvent(TelegramReplyEvent event) {
-        log.info("Sending reply to chatId={}, tenant={}", event.chatId(), event.tenantId());
+        log.info("Sending reply to chatId={}, tenant={}, hasButtons={}",
+                event.chatId(), event.tenantId(),
+                event.inlineKeyboard() != null && !event.inlineKeyboard().isEmpty());
 
         try {
-            telegramGateway.sendTextMessage(event.chatId(), event.text(), event.parseMode());
+            telegramGateway.sendTextMessage(
+                    event.chatId(), event.text(), event.parseMode(), event.inlineKeyboard());
         } catch (TelegramApiException e) {
             log.error("Failed to send Telegram message to chatId={}", event.chatId(), e);
         }

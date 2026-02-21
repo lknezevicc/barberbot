@@ -18,6 +18,7 @@ import hr.lknezevic.barberbot.model.dto.Session;
 import hr.lknezevic.barberbot.model.enums.BotCommand;
 import hr.lknezevic.barberbot.model.enums.MessageType;
 import hr.lknezevic.barberbot.model.enums.SessionState;
+import hr.lknezevic.barberbot.model.event.BookingCancelRequestEvent;
 import hr.lknezevic.barberbot.model.event.BookingRequestEvent;
 import hr.lknezevic.barberbot.model.event.TelegramReplyEvent;
 import lombok.RequiredArgsConstructor;
@@ -163,8 +164,18 @@ public class MessageProcessor {
     }
 
     private ReplyAction handleCancelSpecificBooking(InboundMessage message, Session session, String data) {
-        log.info("Cancel specific booking callback: {}", data);
-        return ReplyAction.of(message.chatId(), "Otkazivanje u tijeku...");
+        String bookingIdStr = data.substring("cancel:".length());
+        try {
+            java.util.UUID bookingId = java.util.UUID.fromString(bookingIdStr);
+            rabbitTemplate.convertAndSend(
+                    RabbitQueues.EXCHANGE,
+                    RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY,
+                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId()));
+            return ReplyAction.of(message.chatId(), "Otkazivanje u tijeku...");
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid booking ID in cancel callback: {}", bookingIdStr);
+            return ReplyAction.of(message.chatId(), "Nevažeći termin za otkazivanje.");
+        }
     }
 
     private void publishReply(String tenantId, ReplyAction action) {

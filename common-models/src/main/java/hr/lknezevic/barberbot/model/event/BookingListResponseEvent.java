@@ -8,6 +8,7 @@ import java.util.UUID;
 public record BookingListResponseEvent(
         String userId,
         Long chatId,
+        String purpose,
         List<BookingSummary> bookings
 ) {
 

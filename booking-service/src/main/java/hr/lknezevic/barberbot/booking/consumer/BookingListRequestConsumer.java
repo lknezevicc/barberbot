@@ -24,7 +24,7 @@ public class BookingListRequestConsumer {
 
     @RabbitListener(queues = RabbitQueues.BOOKING_LIST_REQUEST_QUEUE)
     public void onListRequest(BookingListRequestEvent event) {
-        log.info("Received booking list request for userId={}", event.userId());
+        log.info("Received booking list request for userId={}, purpose={}", event.userId(), event.purpose());
 
         List<Booking> bookings = bookingService.getUpcomingBookings(event.userId());
 
@@ -35,6 +35,6 @@ public class BookingListRequestConsumer {
                 .toList();
 
         eventPublisher.publishListResponse(
-                new BookingListResponseEvent(event.userId(), event.chatId(), summaries));
+                new BookingListResponseEvent(event.userId(), event.chatId(), event.purpose(), summaries));
     }
 }

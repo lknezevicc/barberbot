@@ -31,6 +31,23 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:16
+    container_name: barberbot-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-barberbot}
+      POSTGRES_USER: ${POSTGRES_USER:-barberbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barberbot}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-barberbot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   gateway-service:
     build:
       context: .
@@ -103,6 +120,35 @@ services:
       timeout: 5s
       retries: 3
 
+  booking-service:
+    build:
+      context: .
+      dockerfile: booking-service/Dockerfile
+    container_name: barberbot-booking
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-barberbot}
+      POSTGRES_USER: ${POSTGRES_USER:-barberbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barberbot}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
 volumes:
   redis-data:
   rabbitmq-data:
+  postgres-data:

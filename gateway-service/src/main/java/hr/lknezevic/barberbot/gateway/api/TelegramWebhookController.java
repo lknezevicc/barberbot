@@ -1,7 +1,9 @@
 package hr.lknezevic.barberbot.gateway.api;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hr.lknezevic.barberbot.gateway.filter.DeduplicationFilter;
 import hr.lknezevic.barberbot.gateway.publisher.UpdateEventPublisher;
 import hr.lknezevic.barberbot.model.event.TelegramUpdateEvent;
 import lombok.RequiredArgsConstructor;
@@ -20,15 +22,22 @@ import org.springframework.web.bind.annotation.RestController;
 public final class TelegramWebhookController {
 
     private final UpdateEventPublisher updateEventPublisher;
+    private final DeduplicationFilter deduplicationFilter;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> onUpdate(@RequestBody String rawJson) {
+        JsonNode root;
         try {
-            objectMapper.readTree(rawJson);
+            root = objectMapper.readTree(rawJson);
         } catch (JsonProcessingException e) {
             log.warn("Received malformed JSON from Telegram webhook");
             return ResponseEntity.badRequest().build();
+        }
+
+        long updateId = root.path("update_id").asLong(0);
+        if (updateId > 0 && deduplicationFilter.isDuplicate(updateId)) {
+            return ResponseEntity.ok().build();
         }
 
         try {

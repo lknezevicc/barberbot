@@ -60,6 +60,10 @@ public class Booking {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Builder.Default
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes = 30;
+
     @Column(nullable = false)
     private Instant updatedAt;
 

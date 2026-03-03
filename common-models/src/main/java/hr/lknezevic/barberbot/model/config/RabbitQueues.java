@@ -29,4 +29,13 @@ public final class RabbitQueues {
 
     public static final String BOOKING_CANCELLED_QUEUE = "booking.cancelled";
     public static final String BOOKING_CANCELLED_ROUTING_KEY = "booking.cancelled";
+
+    public static final String BOOKING_HELD_QUEUE = "booking.held";
+    public static final String BOOKING_HELD_ROUTING_KEY = "booking.held";
+
+    public static final String BOOKING_SLOT_UNAVAILABLE_QUEUE = "booking.slot.unavailable";
+    public static final String BOOKING_SLOT_UNAVAILABLE_ROUTING_KEY = "booking.slot.unavailable";
+
+    public static final String BOOKING_CONFIRM_HOLD_QUEUE = "booking.confirm.hold";
+    public static final String BOOKING_CONFIRM_HOLD_ROUTING_KEY = "booking.confirm.hold";
 }

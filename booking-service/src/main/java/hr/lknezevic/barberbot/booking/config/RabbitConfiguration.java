@@ -88,4 +88,37 @@ class RabbitConfiguration {
         return BindingBuilder.bind(bookingCancelledQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_CANCELLED_ROUTING_KEY);
     }
+
+    @Bean
+    Queue bookingHeldQueue() {
+        return new Queue(RabbitQueues.BOOKING_HELD_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingHeldBinding(Queue bookingHeldQueue, TopicExchange exchange) {
+        return BindingBuilder.bind(bookingHeldQueue)
+                .to(exchange).with(RabbitQueues.BOOKING_HELD_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingSlotUnavailableQueue() {
+        return new Queue(RabbitQueues.BOOKING_SLOT_UNAVAILABLE_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingSlotUnavailableBinding(Queue bookingSlotUnavailableQueue, TopicExchange exchange) {
+        return BindingBuilder.bind(bookingSlotUnavailableQueue)
+                .to(exchange).with(RabbitQueues.BOOKING_SLOT_UNAVAILABLE_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingConfirmHoldQueue() {
+        return new Queue(RabbitQueues.BOOKING_CONFIRM_HOLD_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingConfirmHoldBinding(Queue bookingConfirmHoldQueue, TopicExchange exchange) {
+        return BindingBuilder.bind(bookingConfirmHoldQueue)
+                .to(exchange).with(RabbitQueues.BOOKING_CONFIRM_HOLD_ROUTING_KEY);
+    }
 }

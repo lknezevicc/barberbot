@@ -64,6 +64,9 @@ public class Booking {
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes = 30;
 
+    @Column(name = "held_at")
+    private Instant heldAt;
+
     @Column(nullable = false)
     private Instant updatedAt;
 

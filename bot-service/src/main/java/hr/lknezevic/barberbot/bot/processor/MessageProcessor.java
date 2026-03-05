@@ -19,6 +19,7 @@ import hr.lknezevic.barberbot.model.enums.BotCommand;
 import hr.lknezevic.barberbot.model.enums.MessageType;
 import hr.lknezevic.barberbot.model.enums.SessionState;
 import hr.lknezevic.barberbot.model.event.BookingCancelRequestEvent;
+import hr.lknezevic.barberbot.model.event.BookingConfirmHoldEvent;
 import hr.lknezevic.barberbot.model.event.BookingRequestEvent;
 import hr.lknezevic.barberbot.model.event.TelegramReplyEvent;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -125,19 +129,92 @@ public class MessageProcessor {
             return ReplyAction.of(message.chatId(), "Nevažeći odabir.");
         }
 
+        if (data.startsWith("hold:confirm:")) {
+            return handleHoldConfirm(message, session, data);
+        }
+        if (data.startsWith("hold:cancel:")) {
+            return handleHoldCancel(message, session, data);
+        }
+        if (data.startsWith("slot:")) {
+            return handleSlotSelection(message, session, data);
+        }
+        if (data.startsWith("cancel:")) {
+            return handleCancelSpecificBooking(message, session, data);
+        }
+
         return switch (data) {
-            case "booking:confirm" -> handleBookingConfirm(message, session);
+            case "booking:confirm" -> handleHoldConfirmLegacy(message, session);
             case "booking:cancel" -> handleBookingCancel(message, session);
-            default -> {
-                if (data.startsWith("cancel:")) {
-                    yield handleCancelSpecificBooking(message, session, data);
-                }
-                yield ReplyAction.of(message.chatId(), "Nepoznata akcija.");
-            }
+            default -> ReplyAction.of(message.chatId(), "Nepoznata akcija.");
         };
     }
 
-    private ReplyAction handleBookingConfirm(InboundMessage message, Session session) {
+    private ReplyAction handleHoldConfirm(InboundMessage message, Session session, String data) {
+        String bookingIdStr = data.substring("hold:confirm:".length());
+        try {
+            UUID bookingId = UUID.fromString(bookingIdStr);
+            rabbitTemplate.convertAndSend(RabbitQueues.EXCHANGE,
+                    RabbitQueues.BOOKING_CONFIRM_HOLD_ROUTING_KEY,
+                    new BookingConfirmHoldEvent(bookingId, message.userId(), message.chatId()));
+
+            Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
+            return ReplyAction.of(message.chatId(), "Potvrđujem termin...", reset);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid booking ID in hold confirm callback: {}", bookingIdStr);
+            return ReplyAction.of(message.chatId(), "Nevažeći termin za potvrdu.");
+        }
+    }
+
+    private ReplyAction handleHoldCancel(InboundMessage message, Session session, String data) {
+        String bookingIdStr = data.substring("hold:cancel:".length());
+        try {
+            UUID bookingId = UUID.fromString(bookingIdStr);
+            rabbitTemplate.convertAndSend(RabbitQueues.EXCHANGE,
+                    RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY,
+                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId()));
+
+            Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
+            return ReplyAction.of(message.chatId(), "Termin otkazan. Kako ti još mogu pomoći?", reset);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid booking ID in hold cancel callback: {}", bookingIdStr);
+            return ReplyAction.of(message.chatId(), "Nevažeći termin za otkazivanje.");
+        }
+    }
+
+    private ReplyAction handleSlotSelection(InboundMessage message, Session session, String data) {
+        String[] parts = data.substring("slot:".length()).split(":");
+        if (parts.length < 2) {
+            return ReplyAction.of(message.chatId(), "Nevažeći odabir termina.");
+        }
+
+        try {
+            LocalDate date = LocalDate.parse(parts[0]);
+            LocalTime time = LocalTime.parse(parts[1]);
+
+            BookingDraft draft = session.bookingDraft();
+            if (draft == null) {
+                return ReplyAction.of(message.chatId(), "Nema aktivne rezervacije. Započni novu s porukom.");
+            }
+
+            BookingRequestEvent event = new BookingRequestEvent(
+                    message.userId(), message.chatId(),
+                    draft.service(), date, time, draft.barber());
+
+            rabbitTemplate.convertAndSend(
+                    RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
+
+            Session updated = session.withBookingDraft(
+                    new BookingDraft(draft.service(), date, time, draft.barber()))
+                    .withState(SessionState.CONFIRMING);
+
+            return ReplyAction.of(message.chatId(), "Provjeravam dostupnost...", updated);
+        } catch (Exception e) {
+            log.warn("Failed to parse slot callback data: {}", data, e);
+            return ReplyAction.of(message.chatId(), "Nevažeći odabir termina.");
+        }
+    }
+
+    private ReplyAction handleHoldConfirmLegacy(InboundMessage message, Session session) {
         if (session.state() != SessionState.CONFIRMING || session.bookingDraft() == null) {
             return ReplyAction.of(message.chatId(), "Nema aktivne rezervacije za potvrdu.");
         }
@@ -145,17 +222,13 @@ public class MessageProcessor {
         BookingDraft draft = session.bookingDraft();
         BookingRequestEvent event = new BookingRequestEvent(
                 message.userId(), message.chatId(),
-                draft.service(), draft.date(), draft.time(), draft.barber()
-        );
+                draft.service(), draft.date(), draft.time(), draft.barber());
 
         rabbitTemplate.convertAndSend(
                 RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
 
         Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
-        return ReplyAction.of(message.chatId(),
-                "Termin je potvrđen! " + draft.service() + " kod " + draft.barber()
-                        + " na " + draft.date() + " u " + draft.time() + ". Vidimo se!",
-                reset);
+        return ReplyAction.of(message.chatId(), "Provjeravam dostupnost...", reset);
     }
 
     private ReplyAction handleBookingCancel(InboundMessage message, Session session) {
@@ -166,7 +239,7 @@ public class MessageProcessor {
     private ReplyAction handleCancelSpecificBooking(InboundMessage message, Session session, String data) {
         String bookingIdStr = data.substring("cancel:".length());
         try {
-            java.util.UUID bookingId = java.util.UUID.fromString(bookingIdStr);
+            UUID bookingId = UUID.fromString(bookingIdStr);
             rabbitTemplate.convertAndSend(
                     RabbitQueues.EXCHANGE,
                     RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY,

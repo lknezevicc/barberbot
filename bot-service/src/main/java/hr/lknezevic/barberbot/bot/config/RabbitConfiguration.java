@@ -123,6 +123,45 @@ class RabbitConfiguration {
     }
 
     @Bean
+    Queue bookingHeldQueue() {
+        return new Queue(RabbitQueues.BOOKING_HELD_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingHeldBinding(Queue bookingHeldQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingHeldQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_HELD_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingSlotUnavailableQueue() {
+        return new Queue(RabbitQueues.BOOKING_SLOT_UNAVAILABLE_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingSlotUnavailableBinding(Queue bookingSlotUnavailableQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingSlotUnavailableQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_SLOT_UNAVAILABLE_ROUTING_KEY);
+    }
+
+    @Bean
+    Queue bookingConfirmHoldQueue() {
+        return new Queue(RabbitQueues.BOOKING_CONFIRM_HOLD_QUEUE, true);
+    }
+
+    @Bean
+    Binding bookingConfirmHoldBinding(Queue bookingConfirmHoldQueue, DirectExchange barberbotExchange) {
+        return BindingBuilder
+                .bind(bookingConfirmHoldQueue)
+                .to(barberbotExchange)
+                .with(RabbitQueues.BOOKING_CONFIRM_HOLD_ROUTING_KEY);
+    }
+
+    @Bean
     MessageConverter jackson2JsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }

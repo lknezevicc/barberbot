@@ -1,19 +1,25 @@
 package hr.lknezevic.barberbot.bot.handler.intent;
 
+import hr.lknezevic.barberbot.model.config.RabbitQueues;
 import hr.lknezevic.barberbot.model.dto.BookingDraft;
 import hr.lknezevic.barberbot.model.dto.InboundMessage;
-import hr.lknezevic.barberbot.model.dto.InlineButton;
 import hr.lknezevic.barberbot.model.dto.LlmResult;
 import hr.lknezevic.barberbot.model.dto.ReplyAction;
 import hr.lknezevic.barberbot.model.dto.Session;
 import hr.lknezevic.barberbot.model.enums.LlmIntent;
 import hr.lknezevic.barberbot.model.enums.SessionState;
+import hr.lknezevic.barberbot.model.event.BookingRequestEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class BookingIntentHandler implements IntentHandler {
+
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     public LlmIntent supportedIntent() {
@@ -34,20 +40,18 @@ public class BookingIntentHandler implements IntentHandler {
                 .withState(SessionState.BOOKING);
 
         if (merged.isComplete()) {
-            String summary = merged.service() + " kod " + merged.barber()
-                    + " na " + merged.date() + " u " + merged.time();
+            BookingRequestEvent event = new BookingRequestEvent(
+                    message.userId(), message.chatId(),
+                    merged.service(), merged.date(), merged.time(), merged.barber());
 
-            List<InlineButton> buttons = List.of(
-                    new InlineButton("Potvrdi", "booking:confirm"),
-                    new InlineButton("Odustani", "booking:cancel")
-            );
+            rabbitTemplate.convertAndSend(
+                    RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
 
-            return ReplyAction.withButtons(
-                    message.chatId(),
-                    summary + "\n\nPotvrđuješ?",
-                    updated.withState(SessionState.CONFIRMING),
-                    buttons
-            );
+            log.info("Published BookingRequestEvent (hold attempt) for userId={}, barber={}, date={}, time={}",
+                    message.userId(), merged.barber(), merged.date(), merged.time());
+
+            Session confirming = updated.withState(SessionState.CONFIRMING);
+            return ReplyAction.of(message.chatId(), "Provjeravam dostupnost...", confirming);
         }
 
         String replyText = llmResult.reply() != null

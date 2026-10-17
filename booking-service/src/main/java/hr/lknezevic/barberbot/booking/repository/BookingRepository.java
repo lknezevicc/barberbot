@@ -19,4 +19,6 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findByBarberAndDateAndStatusIn(String barber, LocalDate date, List<BookingStatus> statuses);
 
     List<Booking> findByStatusAndHeldAtBefore(BookingStatus status, Instant cutoff);
+
+    List<Booking> findByDateAndStatus(LocalDate date, BookingStatus status);
 }

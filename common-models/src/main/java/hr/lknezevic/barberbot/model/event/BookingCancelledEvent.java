@@ -6,7 +6,7 @@ public record BookingCancelledEvent(
         UUID bookingId,
         String userId,
         Long chatId,
+        String tenantId,
         boolean success,
         String message
-) {
-}
+) {}

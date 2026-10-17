@@ -13,6 +13,7 @@ import hr.lknezevic.barberbot.model.event.TelegramReplyEvent;
 import hr.lknezevic.barberbot.model.event.TelegramUpdateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -39,7 +40,14 @@ public class UpdateEventConsumer {
     @RabbitListener(queues = RabbitQueues.UPDATE_INBOUND_QUEUE, ackMode = "MANUAL")
     public void onUpdateEvent(TelegramUpdateEvent event, Channel channel,
                               @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        log.info("Received update event, tenant={}", event.tenantId());
+        if (event.correlationId() != null) {
+            MDC.put("correlationId", event.correlationId());
+        }
+        if (event.tenantId() != null) {
+            MDC.put("tenantId", event.tenantId());
+        }
+
+        log.info("Received update event, tenant={}, correlationId={}", event.tenantId(), event.correlationId());
 
         var parsed = updateEventParser.parse(event);
         if (parsed.isEmpty()) {
@@ -62,6 +70,8 @@ public class UpdateEventConsumer {
             drainAndProcessPending(message.userId(), message.tenantId(), message.chatId());
         } finally {
             userLock.release(message.userId());
+            MDC.remove("correlationId");
+            MDC.remove("tenantId");
         }
 
         channel.basicAck(deliveryTag, false);
@@ -100,7 +110,7 @@ public class UpdateEventConsumer {
             InboundMessage first = textMessages.getFirst();
             InboundMessage combined = new InboundMessage(
                     first.tenantId(), first.chatId(), first.userId(),
-                    merged, null, MessageType.TEXT);
+                    merged, null, MessageType.TEXT, first.customerName());
 
             log.info("Merged {} text messages for userId={}: '{}'", textMessages.size(), userId, merged);
             processWithRateCheck(combined);

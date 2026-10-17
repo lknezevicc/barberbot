@@ -9,6 +9,12 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:barberbot}
+    username: ${POSTGRES_USER:barberbot}
+    password: ${POSTGRES_PASSWORD:barberbot}
+    hikari:
+      maximum-pool-size: 3
 
 reply:
   telegram:
@@ -21,3 +27,9 @@ management:
     web:
       exposure:
         include: health
+
+logging:
+  level:
+    hr.lknezevic.barberbot: DEBUG
+    org.springframework.amqp: INFO
+    org.springframework.web: INFO

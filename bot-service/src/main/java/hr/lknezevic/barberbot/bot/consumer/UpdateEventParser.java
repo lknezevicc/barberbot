@@ -44,6 +44,12 @@ public class UpdateEventParser {
         String userId = String.valueOf(message.path("from").path("id").asLong());
         String text = message.has("text") ? message.get("text").asText() : null;
 
+        String firstName = message.path("from").path("first_name").asText(null);
+        String lastName = message.path("from").path("last_name").asText(null);
+        String customerName = firstName != null
+                ? (lastName != null ? firstName + " " + lastName : firstName)
+                : null;
+
         if (text == null) {
             log.debug("Message without text from userId={}, skipping", userId);
             return Optional.empty();
@@ -53,7 +59,7 @@ public class UpdateEventParser {
                 ? MessageType.COMMAND
                 : MessageType.TEXT;
 
-        return Optional.of(new InboundMessage(tenantId, chatId, userId, text, null, type));
+        return Optional.of(new InboundMessage(tenantId, chatId, userId, text, null, type, customerName));
     }
 
     private Optional<InboundMessage> parseCallback(String tenantId, JsonNode callbackQuery) {
@@ -61,6 +67,12 @@ public class UpdateEventParser {
         String userId = String.valueOf(callbackQuery.path("from").path("id").asLong());
         String data = callbackQuery.has("data") ? callbackQuery.get("data").asText() : null;
 
-        return Optional.of(new InboundMessage(tenantId, chatId, userId, null, data, MessageType.CALLBACK));
+        String firstName = callbackQuery.path("from").path("first_name").asText(null);
+        String lastName = callbackQuery.path("from").path("last_name").asText(null);
+        String customerName = firstName != null
+                ? (lastName != null ? firstName + " " + lastName : firstName)
+                : null;
+
+        return Optional.of(new InboundMessage(tenantId, chatId, userId, null, data, MessageType.CALLBACK, customerName));
     }
 }

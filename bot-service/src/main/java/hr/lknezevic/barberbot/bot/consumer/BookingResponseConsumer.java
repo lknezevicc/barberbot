@@ -45,7 +45,7 @@ public class BookingResponseConsumer {
         );
 
         replyPublisher.publish(
-                TelegramReplyEvent.withButtons(null, event.chatId(), summary + "\n\nPotvrđuješ?", buttons));
+                TelegramReplyEvent.withButtons(event.tenantId(), event.chatId(), summary + "\n\nPotvrđuješ?", buttons));
     }
 
     @RabbitListener(queues = RabbitQueues.BOOKING_SLOT_UNAVAILABLE_QUEUE)
@@ -56,7 +56,7 @@ public class BookingResponseConsumer {
 
         if (event.alternatives().isEmpty()) {
             replyPublisher.publish(TelegramReplyEvent.of(
-                    event.chatId(),
+                    event.tenantId(), event.chatId(),
                     "Nažalost, traženi termin nije dostupan i nema slobodnih alternativa u sljedećih 14 dana. "
                             + "Pokušaj s drugim datumom ili barberom."));
             return;
@@ -76,18 +76,25 @@ public class BookingResponseConsumer {
         }
 
         replyPublisher.publish(
-                TelegramReplyEvent.withButtons(null, event.chatId(), sb.toString(), buttons));
+                TelegramReplyEvent.withButtons(event.tenantId(), event.chatId(), sb.toString(), buttons));
     }
 
     @RabbitListener(queues = RabbitQueues.BOOKING_CONFIRMED_QUEUE)
     public void onBookingConfirmed(BookingConfirmedEvent event) {
-        log.info("Booking confirmed: id={}, userId={}", event.bookingId(), event.userId());
+        log.info("Booking confirmed: id={}, userId={}, hasIcs={}",
+                event.bookingId(), event.userId(), event.icsData() != null);
 
         String text = "Termin potvrđen! " + event.service() + " kod " + event.barber()
                 + " na " + event.date().format(DATE_FMT) + " u " + event.time().format(TIME_FMT)
                 + ". Vidimo se!";
 
-        replyPublisher.publish(TelegramReplyEvent.of(event.chatId(), text));
+        if (event.icsData() != null && event.icsData().length > 0) {
+            String filename = "termin_" + event.date().toString() + ".ics";
+            replyPublisher.publish(TelegramReplyEvent.withDocument(
+                    event.tenantId(), event.chatId(), text, event.icsData(), filename));
+        } else {
+            replyPublisher.publish(TelegramReplyEvent.of(event.tenantId(), event.chatId(), text));
+        }
     }
 
     @RabbitListener(queues = RabbitQueues.BOOKING_LIST_RESPONSE_QUEUE)
@@ -104,7 +111,7 @@ public class BookingResponseConsumer {
 
     private void handleViewList(BookingListResponseEvent event) {
         if (event.bookings().isEmpty()) {
-            replyPublisher.publish(TelegramReplyEvent.of(event.chatId(), "Nemaš nijedan nadolazeći termin."));
+            replyPublisher.publish(TelegramReplyEvent.of(event.tenantId(), event.chatId(), "Nemaš nijedan nadolazeći termin."));
             return;
         }
 
@@ -118,12 +125,12 @@ public class BookingResponseConsumer {
                     .append("\n");
         }
 
-        replyPublisher.publish(TelegramReplyEvent.of(event.chatId(), sb.toString().trim()));
+        replyPublisher.publish(TelegramReplyEvent.of(event.tenantId(), event.chatId(), sb.toString().trim()));
     }
 
     private void handleCancelList(BookingListResponseEvent event) {
         if (event.bookings().isEmpty()) {
-            replyPublisher.publish(TelegramReplyEvent.of(event.chatId(), "Nemaš nijedan termin za otkazivanje."));
+            replyPublisher.publish(TelegramReplyEvent.of(event.tenantId(), event.chatId(), "Nemaš nijedan termin za otkazivanje."));
             return;
         }
 
@@ -137,12 +144,12 @@ public class BookingResponseConsumer {
                 .toList();
 
         replyPublisher.publish(
-                TelegramReplyEvent.withButtons(null, event.chatId(), sb.toString().trim(), buttons));
+                TelegramReplyEvent.withButtons(event.tenantId(), event.chatId(), sb.toString().trim(), buttons));
     }
 
     @RabbitListener(queues = RabbitQueues.BOOKING_CANCELLED_QUEUE)
     public void onBookingCancelled(BookingCancelledEvent event) {
         log.info("Booking cancel response: id={}, success={}", event.bookingId(), event.success());
-        replyPublisher.publish(TelegramReplyEvent.of(event.chatId(), event.message()));
+        replyPublisher.publish(TelegramReplyEvent.of(event.tenantId(), event.chatId(), event.message()));
     }
 }

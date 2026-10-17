@@ -65,8 +65,9 @@ public class BookingIntentHandler implements IntentHandler {
         updated = updated.withBookingDraft(normalized);
 
         BookingRequestEvent event = new BookingRequestEvent(
-                message.userId(), message.chatId(),
-                normalized.service(), normalized.date(), normalized.time(), normalized.barber());
+                message.userId(), message.chatId(), message.tenantId(),
+                normalized.service(), normalized.date(), normalized.time(), normalized.barber(),
+                message.customerName());
 
         rabbitTemplate.convertAndSend(
                 RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);

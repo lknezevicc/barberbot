@@ -5,9 +5,14 @@ import hr.lknezevic.barberbot.bot.service.ConversationEntry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -50,16 +55,19 @@ public class LlmService {
 
     private String callLlm(String systemPrompt, String userMessage,
                            List<ConversationEntry> history) {
-        ChatClientRequestSpec spec = chatClient.prompt().system(systemPrompt);
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(systemPrompt));
 
         for (ConversationEntry entry : history) {
             if ("user".equals(entry.role())) {
-                spec = spec.user(entry.content());
+                messages.add(new UserMessage(entry.content()));
             } else {
-                spec = spec.assistant(entry.content());
+                messages.add(new AssistantMessage(entry.content()));
             }
         }
 
-        return spec.user(userMessage).call().content();
+        messages.add(new UserMessage(userMessage));
+
+        return chatClient.prompt(new Prompt(messages)).call().content();
     }
 }

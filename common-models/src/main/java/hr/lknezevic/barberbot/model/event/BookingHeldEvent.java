@@ -8,6 +8,7 @@ public record BookingHeldEvent(
         UUID bookingId,
         String userId,
         Long chatId,
+        String tenantId,
         String service,
         LocalDate date,
         LocalTime time,

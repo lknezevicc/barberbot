@@ -31,8 +31,20 @@ public final class TelegramTokenFilter extends OncePerRequestFilter {
             return;
         }
 
+        String expectedToken = gatewayProperties.telegram().secretToken();
+        if (expectedToken == null || expectedToken.isBlank()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = request.getHeader("X-Telegram-Bot-Api-Secret-Token");
-        if (!gatewayProperties.telegram().secretToken().equals(token)) {
+        if (token == null || token.isBlank()) {
+            log.warn("Missing Telegram secret token for {}", request.getRequestURI());
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        if (!expectedToken.equals(token)) {
             log.warn("Invalid Telegram secret token for {}", request.getRequestURI());
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;

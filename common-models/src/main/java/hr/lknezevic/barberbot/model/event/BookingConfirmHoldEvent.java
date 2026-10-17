@@ -5,5 +5,6 @@ import java.util.UUID;
 public record BookingConfirmHoldEvent(
         UUID bookingId,
         String userId,
-        Long chatId
+        Long chatId,
+        String tenantId
 ) {}

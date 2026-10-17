@@ -1,6 +1,7 @@
 package hr.lknezevic.barberbot.infrastructure.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hr.lknezevic.barberbot.infrastructure.redis.RedisFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,5 +33,11 @@ public class RedisConfiguration {
     @ConditionalOnMissingBean
     ObjectMapper objectMapper() {
         return new ObjectMapper().findAndRegisterModules();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RedisFactory redisFactory(RedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
+        return new RedisFactory(redisTemplate, objectMapper);
     }
 }

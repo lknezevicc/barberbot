@@ -8,6 +8,7 @@ public record InboundMessage(
         String userId,
         String text,
         String callbackData,
-        MessageType messageType
+        MessageType messageType,
+        String customerName
 ) {
 }

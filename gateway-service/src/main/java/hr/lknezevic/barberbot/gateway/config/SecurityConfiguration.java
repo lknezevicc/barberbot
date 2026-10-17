@@ -22,7 +22,7 @@ class SecurityConfiguration {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/telegram/webhook").permitAll()
+                        .requestMatchers("/telegram/webhook/**", "/telegram/webhook").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(telegramTokenFilter, UsernamePasswordAuthenticationFilter.class);

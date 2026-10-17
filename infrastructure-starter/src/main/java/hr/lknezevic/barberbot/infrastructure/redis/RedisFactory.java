@@ -5,9 +5,7 @@ import hr.lknezevic.barberbot.infrastructure.storage.ObjectValueStore;
 import hr.lknezevic.barberbot.infrastructure.storage.StringValueStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
 
-@Component
 @RequiredArgsConstructor
 public final class RedisFactory {
 

@@ -1,5 +1,8 @@
 package hr.lknezevic.barberbot.bot.llm;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
 public final class PromptFactory {
 
     private PromptFactory() {}
@@ -40,17 +43,28 @@ public final class PromptFactory {
             INTENT:
             Uvijek prepoznaj TOČNO JEDAN intent iz sljedećeg popisa:
             
-            BOOKING
-            → korisnik želi rezervirati termin ili govori o šišanju / brijanju
-            (npr. "trebam šišanje", "rezerviraj termin", "šišanje sutra")
-            
-            COMMAND_PROXY
+            COMMAND_PROXY (PROVJERI PRVO!)
             → korisnik prirodnim jezikom traži nešto za što postoji sistemska komanda.
             Dostupne komande:
-              /my_bookings → pregled termina (npr. "koji su moji termini", "imam li nešto zakazano", "moje rezervacije")
-              /cancel → otkazivanje termina (npr. "otkaži termin", "ne mogu doći", "odustani od termina")
-              /help → pomoć (npr. "što sve možeš", "kako funkcioniraš", "pomozi mi")
+              /my_bookings → pregled termina
+                (npr. "koji su moji termini", "imam li nešto zakazano", "moje rezervacije",
+                 "imam li termina", "imam li termin", "kada mi je termin", "što imam zakazano",
+                 "pregled mojih termina", "moji termini", "jel imam kakav termin")
+              /cancel → otkazivanje termina
+                (npr. "otkaži termin", "ne mogu doći", "odustani od termina", "želim otkazati")
+              /help → pomoć
+                (npr. "što sve možeš", "kako funkcioniraš", "pomozi mi", "help")
             Ako korisnik traži nešto od navedenog, postavi suggestedCommand na odgovarajuću komandu.
+            
+            VAŽNO PRAVILO ZA RAZLIKOVANJE:
+            - "imam li termina/termin" = COMMAND_PROXY (/my_bookings) — korisnik PITA o postojećim terminima
+            - "trebam termin", "rezerviraj termin", "želim novi termin" = BOOKING — korisnik ŽELI NOVI termin
+            - Ako korisnik samo PITA o terminima bez naznake novog rezerviranja → COMMAND_PROXY
+            - Ako korisnik eksplicitno traži novi/drugi termin ili navodi uslugu/datum/vrijeme → BOOKING
+            
+            BOOKING
+            → korisnik želi REZERVIRATI NOVI termin ili eksplicitno navodi uslugu/datum/vrijeme
+            (npr. "trebam šišanje", "rezerviraj termin za sutra", "šišanje sutra u 15h")
             
             SMALLTALK
             → neobavezni razgovor koji nije vezan uz funkcionalnost
@@ -65,9 +79,19 @@ public final class PromptFactory {
             BOOKING DRAFT:
             Ako je intent BOOKING, pokušaj izvući sljedeće podatke:
             - service (npr. "šišanje", "brijanje")
-            - date (ISO format YYYY-MM-DD ako je moguće)
+            - date (OBAVEZNO u ISO formatu YYYY-MM-DD, npr. "2026-06-01")
             - time (HH:mm ako je moguće)
             - barber (ime ako je navedeno)
+            
+            DANAŠNJI DATUM: %s
+            
+            PRAVILA ZA DATUM:
+            - "danas" → %s
+            - "sutra" → jedan dan nakon današnjeg datuma
+            - "prekosutra" → dva dana nakon današnjeg datuma
+            - "u ponedjeljak", "u utorak" itd. → izračunaj točan datum sljedećeg tog dana
+            - NIKADA ne vraćaj riječi poput "sutra", "danas" — uvijek izračunaj i vrati YYYY-MM-DD format
+            - Ako korisnik ne navede datum, postavi na null
             
             Ako podatak nije jasno naveden ili siguran:
             - Postavi ga na null
@@ -144,12 +168,24 @@ public final class PromptFactory {
             """;
 
     public static String buildSystemPrompt() {
-        return INSTRUCTION_BOUNDARY
-                + BASE_INSTRUCTIONS + "\n"
-                + INTENT_BLOCK + "\n"
-                + BOOKING_DRAFT_BLOCK + "\n"
-                + REPLY_BLOCK + "\n"
-                + SECURITY_BLOCK + "\n"
-                + FORMAT_BLOCK;
+        return buildSystemPrompt("");
+    }
+
+    public static String buildSystemPrompt(String tenantContextBlock) {
+        String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String draftBlock = BOOKING_DRAFT_BLOCK.formatted(today, today);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(INSTRUCTION_BOUNDARY);
+        sb.append(BASE_INSTRUCTIONS).append("\n");
+        if (tenantContextBlock != null && !tenantContextBlock.isBlank()) {
+            sb.append(tenantContextBlock).append("\n");
+        }
+        sb.append(INTENT_BLOCK).append("\n");
+        sb.append(draftBlock).append("\n");
+        sb.append(REPLY_BLOCK).append("\n");
+        sb.append(SECURITY_BLOCK).append("\n");
+        sb.append(FORMAT_BLOCK);
+        return sb.toString();
     }
 }

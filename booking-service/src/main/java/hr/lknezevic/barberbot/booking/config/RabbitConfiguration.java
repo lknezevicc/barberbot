@@ -4,7 +4,7 @@ import hr.lknezevic.barberbot.model.config.RabbitQueues;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -19,8 +19,8 @@ class RabbitConfiguration {
     }
 
     @Bean
-    TopicExchange exchange() {
-        return new TopicExchange(RabbitQueues.EXCHANGE);
+    DirectExchange exchange() {
+        return new DirectExchange(RabbitQueues.EXCHANGE);
     }
 
     @Bean
@@ -29,7 +29,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingRequestBinding(Queue bookingRequestQueue, TopicExchange exchange) {
+    Binding bookingRequestBinding(Queue bookingRequestQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingRequestQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_REQUEST_ROUTING_KEY);
     }
@@ -40,7 +40,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingConfirmedBinding(Queue bookingConfirmedQueue, TopicExchange exchange) {
+    Binding bookingConfirmedBinding(Queue bookingConfirmedQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingConfirmedQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_CONFIRMED_ROUTING_KEY);
     }
@@ -51,7 +51,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingListRequestBinding(Queue bookingListRequestQueue, TopicExchange exchange) {
+    Binding bookingListRequestBinding(Queue bookingListRequestQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingListRequestQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_LIST_REQUEST_ROUTING_KEY);
     }
@@ -62,7 +62,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingListResponseBinding(Queue bookingListResponseQueue, TopicExchange exchange) {
+    Binding bookingListResponseBinding(Queue bookingListResponseQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingListResponseQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_LIST_RESPONSE_ROUTING_KEY);
     }
@@ -73,7 +73,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingCancelRequestBinding(Queue bookingCancelRequestQueue, TopicExchange exchange) {
+    Binding bookingCancelRequestBinding(Queue bookingCancelRequestQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingCancelRequestQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY);
     }
@@ -84,7 +84,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingCancelledBinding(Queue bookingCancelledQueue, TopicExchange exchange) {
+    Binding bookingCancelledBinding(Queue bookingCancelledQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingCancelledQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_CANCELLED_ROUTING_KEY);
     }
@@ -95,7 +95,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingHeldBinding(Queue bookingHeldQueue, TopicExchange exchange) {
+    Binding bookingHeldBinding(Queue bookingHeldQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingHeldQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_HELD_ROUTING_KEY);
     }
@@ -106,7 +106,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingSlotUnavailableBinding(Queue bookingSlotUnavailableQueue, TopicExchange exchange) {
+    Binding bookingSlotUnavailableBinding(Queue bookingSlotUnavailableQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingSlotUnavailableQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_SLOT_UNAVAILABLE_ROUTING_KEY);
     }
@@ -117,7 +117,7 @@ class RabbitConfiguration {
     }
 
     @Bean
-    Binding bookingConfirmHoldBinding(Queue bookingConfirmHoldQueue, TopicExchange exchange) {
+    Binding bookingConfirmHoldBinding(Queue bookingConfirmHoldQueue, DirectExchange exchange) {
         return BindingBuilder.bind(bookingConfirmHoldQueue)
                 .to(exchange).with(RabbitQueues.BOOKING_CONFIRM_HOLD_ROUTING_KEY);
     }

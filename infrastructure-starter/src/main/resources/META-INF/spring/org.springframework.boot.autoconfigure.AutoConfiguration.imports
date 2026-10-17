@@ -1,3 +1,4 @@
 hr.lknezevic.barberbot.infrastructure.config.RedisConfiguration
 hr.lknezevic.barberbot.infrastructure.config.LettuceClientOptionsConfiguration
 hr.lknezevic.barberbot.infrastructure.config.CircuitBreakerConfiguration
+hr.lknezevic.barberbot.infrastructure.rabbit.RabbitCorrelationConfiguration

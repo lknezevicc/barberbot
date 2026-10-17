@@ -2,8 +2,14 @@ server:
   port: 8082
 
 spring:
+  main:
+    web-application-type: servlet
   application:
     name: bot-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:barberbot}
+    username: ${DB_USERNAME:barberbot}
+    password: ${DB_PASSWORD:barberbot}
   data:
     redis:
       host: ${REDIS_HOST:redis}
@@ -18,11 +24,11 @@ spring:
         prefetch: 5
   ai:
     openai:
-      api-key: ${OPENROUTER_API_KEY}
-      base-url: https://openrouter.ai/api
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai
       chat:
         options:
-          model: openai/gpt-oss-120b:free
+          model: llama-3.3-70b-versatile
           temperature: 0.0
 
 resilience4j:
@@ -42,3 +48,10 @@ management:
     web:
       exposure:
         include: health
+
+logging:
+  level:
+    hr.lknezevic.barberbot: DEBUG
+    org.springframework.amqp: INFO
+    org.springframework.web: INFO
+    org.springframework.ai: INFO

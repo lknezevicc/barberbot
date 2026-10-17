@@ -35,6 +35,6 @@ public class BookingListRequestConsumer {
                 .toList();
 
         eventPublisher.publishListResponse(
-                new BookingListResponseEvent(event.userId(), event.chatId(), event.purpose(), summaries));
+                new BookingListResponseEvent(event.userId(), event.chatId(), event.tenantId(), event.purpose(), summaries));
     }
 }

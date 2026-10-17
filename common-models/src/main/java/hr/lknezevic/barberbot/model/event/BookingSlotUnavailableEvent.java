@@ -7,6 +7,7 @@ import java.util.List;
 public record BookingSlotUnavailableEvent(
         String userId,
         Long chatId,
+        String tenantId,
         String service,
         LocalDate originalDate,
         LocalTime originalTime,

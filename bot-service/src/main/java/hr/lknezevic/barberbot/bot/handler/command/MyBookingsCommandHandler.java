@@ -21,7 +21,7 @@ public class MyBookingsCommandHandler implements CommandHandler {
 
     @Override
     public ReplyAction handle(InboundMessage message, Session session) {
-        bookingQueryService.requestBookingList(message.userId(), message.chatId());
+        bookingQueryService.requestBookingList(message.userId(), message.chatId(), message.tenantId());
         return ReplyAction.of(message.chatId(), "Dohvaćam tvoje termine...");
     }
 }

@@ -9,6 +9,7 @@ import hr.lknezevic.barberbot.bot.publisher.ReplyPublisher;
 import hr.lknezevic.barberbot.bot.service.ConversationEntry;
 import hr.lknezevic.barberbot.bot.service.ConversationHistoryService;
 import hr.lknezevic.barberbot.bot.service.SessionService;
+import hr.lknezevic.barberbot.bot.service.TenantContextService;
 import hr.lknezevic.barberbot.model.config.RabbitQueues;
 import hr.lknezevic.barberbot.model.dto.BookingDraft;
 import hr.lknezevic.barberbot.model.dto.InboundMessage;
@@ -47,6 +48,7 @@ public class MessageProcessor {
     private final IntentRouter intentRouter;
     private final ReplyPublisher replyPublisher;
     private final RabbitTemplate rabbitTemplate;
+    private final TenantContextService tenantContextService;
 
     public void process(InboundMessage message) {
         try {
@@ -101,8 +103,11 @@ public class MessageProcessor {
 
         List<ConversationEntry> history = conversationHistoryService.getHistory(message.userId());
 
+        TenantContextService.TenantContext tenantCtx = tenantContextService.getContext(message.tenantId());
+        String systemPrompt = PromptFactory.buildSystemPrompt(tenantCtx.toPromptBlock());
+
         LlmResult llmResult = llmService.ask(
-                PromptFactory.buildSystemPrompt(),
+                systemPrompt,
                 sanitized.text(),
                 history,
                 LlmResult.class
@@ -155,7 +160,7 @@ public class MessageProcessor {
             UUID bookingId = UUID.fromString(bookingIdStr);
             rabbitTemplate.convertAndSend(RabbitQueues.EXCHANGE,
                     RabbitQueues.BOOKING_CONFIRM_HOLD_ROUTING_KEY,
-                    new BookingConfirmHoldEvent(bookingId, message.userId(), message.chatId()));
+                    new BookingConfirmHoldEvent(bookingId, message.userId(), message.chatId(), message.tenantId()));
 
             Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
             return ReplyAction.of(message.chatId(), "Potvrđujem termin...", reset);
@@ -171,7 +176,7 @@ public class MessageProcessor {
             UUID bookingId = UUID.fromString(bookingIdStr);
             rabbitTemplate.convertAndSend(RabbitQueues.EXCHANGE,
                     RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY,
-                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId()));
+                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId(), message.tenantId()));
 
             Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
             return ReplyAction.of(message.chatId(), "Termin otkazan. Kako ti još mogu pomoći?", reset);
@@ -197,8 +202,9 @@ public class MessageProcessor {
             }
 
             BookingRequestEvent event = new BookingRequestEvent(
-                    message.userId(), message.chatId(),
-                    draft.service(), date, time, draft.barber());
+                    message.userId(), message.chatId(), message.tenantId(),
+                    draft.service(), date, time, draft.barber(),
+                    message.customerName());
 
             rabbitTemplate.convertAndSend(
                     RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
@@ -221,8 +227,9 @@ public class MessageProcessor {
 
         BookingDraft draft = session.bookingDraft();
         BookingRequestEvent event = new BookingRequestEvent(
-                message.userId(), message.chatId(),
-                draft.service(), draft.date(), draft.time(), draft.barber());
+                message.userId(), message.chatId(), message.tenantId(),
+                draft.service(), draft.date(), draft.time(), draft.barber(),
+                message.customerName());
 
         rabbitTemplate.convertAndSend(
                 RabbitQueues.EXCHANGE, RabbitQueues.BOOKING_REQUEST_ROUTING_KEY, event);
@@ -243,8 +250,9 @@ public class MessageProcessor {
             rabbitTemplate.convertAndSend(
                     RabbitQueues.EXCHANGE,
                     RabbitQueues.BOOKING_CANCEL_REQUEST_ROUTING_KEY,
-                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId()));
-            return ReplyAction.of(message.chatId(), "Otkazivanje u tijeku...");
+                    new BookingCancelRequestEvent(bookingId, message.userId(), message.chatId(), message.tenantId()));
+            Session reset = session.withState(SessionState.IDLE).withBookingDraft(null);
+            return ReplyAction.of(message.chatId(), "Otkazivanje u tijeku...", reset);
         } catch (IllegalArgumentException e) {
             log.warn("Invalid booking ID in cancel callback: {}", bookingIdStr);
             return ReplyAction.of(message.chatId(), "Nevažeći termin za otkazivanje.");

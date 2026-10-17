@@ -19,3 +19,9 @@ management:
     web:
       exposure:
         include: health
+
+logging:
+  level:
+    hr.lknezevic.barberbot: DEBUG
+    org.springframework.amqp: INFO
+    org.springframework.web: INFO

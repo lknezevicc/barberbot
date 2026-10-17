@@ -26,9 +26,11 @@ public class BookingCancelRequestConsumer {
                 .ifPresentOrElse(
                         booking -> eventPublisher.publishCancelled(new BookingCancelledEvent(
                                 booking.getId(), event.userId(), event.chatId(),
+                                event.tenantId(),
                                 true, "Termin je uspješno otkazan.")),
                         () -> eventPublisher.publishCancelled(new BookingCancelledEvent(
                                 event.bookingId(), event.userId(), event.chatId(),
+                                event.tenantId(),
                                 false, "Termin nije pronađen ili je već otkazan."))
                 );
     }

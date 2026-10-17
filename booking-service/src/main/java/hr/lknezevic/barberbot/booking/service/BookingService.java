@@ -1,6 +1,9 @@
 package hr.lknezevic.barberbot.booking.service;
 
 import hr.lknezevic.barberbot.booking.entity.Booking;
+import hr.lknezevic.barberbot.booking.entity.Employee;
+import hr.lknezevic.barberbot.booking.entity.ServiceEntity;
+import hr.lknezevic.barberbot.booking.entity.Tenant;
 import hr.lknezevic.barberbot.booking.repository.BookingRepository;
 import hr.lknezevic.barberbot.model.enums.BookingStatus;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +36,9 @@ public class BookingService {
 
     @Transactional
     public Booking holdSlot(String userId, Long chatId, String service,
-                            LocalDate date, LocalTime time, String barber, int durationMinutes) {
+                            LocalDate date, LocalTime time, String barber, int durationMinutes,
+                            String customerName,
+                            Tenant tenant, Employee employee, ServiceEntity serviceEntity) {
         Booking booking = Booking.builder()
                 .userId(userId)
                 .chatId(chatId)
@@ -44,12 +49,26 @@ public class BookingService {
                 .status(BookingStatus.HELD)
                 .durationMinutes(durationMinutes)
                 .heldAt(Instant.now())
+                .customerName(customerName)
+                .tenant(tenant)
+                .employee(employee)
+                .serviceEntity(serviceEntity)
                 .build();
 
         Booking saved = bookingRepository.save(booking);
-        log.info("Slot held: id={}, userId={}, barber={}, date={}, time={}, duration={}min",
-                saved.getId(), userId, barber, date, time, durationMinutes);
+        log.info("Slot held: id={}, userId={}, barber={}, date={}, time={}, duration={}min, tenantId={}, employeeId={}, serviceId={}",
+                saved.getId(), userId, barber, date, time, durationMinutes,
+                tenant != null ? tenant.getId() : null,
+                employee != null ? employee.getId() : null,
+                serviceEntity != null ? serviceEntity.getId() : null);
         return saved;
+    }
+
+    @Deprecated
+    @Transactional
+    public Booking holdSlot(String userId, Long chatId, String service,
+                            LocalDate date, LocalTime time, String barber, int durationMinutes) {
+        return holdSlot(userId, chatId, service, date, time, barber, durationMinutes, null, null, null, null);
     }
 
     @Transactional

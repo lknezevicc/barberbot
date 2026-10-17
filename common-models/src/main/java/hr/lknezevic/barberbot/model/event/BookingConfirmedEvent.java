@@ -8,9 +8,10 @@ public record BookingConfirmedEvent(
         UUID bookingId,
         String userId,
         Long chatId,
+        String tenantId,
         String service,
         LocalDate date,
         LocalTime time,
-        String barber
-) {
-}
+        String barber,
+        byte[] icsData
+) {}

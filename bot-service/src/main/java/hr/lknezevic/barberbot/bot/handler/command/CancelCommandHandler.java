@@ -21,7 +21,7 @@ public class CancelCommandHandler implements CommandHandler {
 
     @Override
     public ReplyAction handle(InboundMessage message, Session session) {
-        bookingQueryService.requestBookingListForCancel(message.userId(), message.chatId());
+        bookingQueryService.requestBookingListForCancel(message.userId(), message.chatId(), message.tenantId());
         return ReplyAction.of(message.chatId(), "Dohvaćam tvoje termine za otkazivanje...");
     }
 }

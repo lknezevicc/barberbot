@@ -1,125 +1,127 @@
-# BarberBot - Funkcionalni zahtjevi
+# BarberBot - Functional Requirements
 
-## Implementirane funkcionalnosti
+Status note: iCal export (F17), reminders (F18), multi-tenancy (F34) and the admin API and dashboard (bookings, employees, services, schedule) have been implemented since this list was written. The remaining items under "Planned features" are the roadmap.
 
-### F1. Registracija korisnika putem Telegrama
-Korisnik pokreće bota s `/start`. Sesija se kreira u Redisu i bot je spreman za komunikaciju. Korisnik ne mora ništa dodatno konfigurirati.
+## Implemented features
 
-### F2. Prirodna komunikacija s botom (LLM)
-Korisnik piše slobodnim tekstom na hrvatskom jeziku. LLM prepoznaje namjeru i vodi razgovor prirodno, kao da korisnik razgovara s recepcijom frizerskog salona.
+### F1. User registration through Telegram
+The user starts the bot with `/start`. A session is created in Redis and the bot is ready to talk. The user does not have to configure anything.
 
-### F3. Pametno prepoznavanje naredbi iz teksta
-Korisnik može napisati "Koji su moji termini?" umjesto `/my_bookings`. LLM prepoznaje da korisnik želi vidjeti termine i automatski prosljeđuje na odgovarajuću komandu. Pokriva i ostale komande (`/cancel`, `/help`, `/start`).
+### F2. Natural conversation with the bot (LLM)
+The user writes free text in Croatian. The LLM recognises the intent and keeps the conversation natural, as if the user were talking to the reception desk of a barbershop.
 
-### F4. Kreiranje rezervacije kroz razgovor
-Bot progresivno prikuplja podatke za rezervaciju (usluga, frizer, datum, vrijeme) kroz prirodan razgovor. Korisnik može dati sve podatke odjednom ili ih davati jedan po jedan. LLM ekstrahira relevantne podatke iz svake poruke i gradi draft.
+### F3. Smart command recognition from free text
+The user can write "What are my appointments?" instead of `/my_bookings`. The LLM recognises that the user wants to see their appointments and routes the message to the matching command. The other commands (`/cancel`, `/help`, `/start`) are covered as well.
 
-### F5. Provjera dostupnosti termina
-Prije potvrde bot provjerava je li traženi termin slobodan kod odabranog frizera. Uzima u obzir radno vrijeme (pon-pet 09-17, sub 09-13, ned zatvoreno), trajanje usluge i postojeće rezervacije s overlap detekcijom na 5-minutnoj mreži.
+### F4. Creating a booking through conversation
+The bot collects the booking details (service, barber, date, time) step by step in a natural conversation. The user can give everything at once or one piece at a time. The LLM extracts the relevant data from every message and builds a draft.
 
-### F6. Predlaganje alternativnih termina
-Ako je traženi termin zauzet, sustav automatski pronalazi i nudi do 3 najbliža slobodna termina kao inline gumbe. Skenira do 14 dana unaprijed, preskačući neradne dane.
+### F5. Slot availability check
+Before confirming, the bot checks that the requested slot is free for the chosen barber. It takes into account working hours (Mon-Fri 09-17, Sat 09-13, Sun closed), the duration of the service and existing bookings, with overlap detection on a 5-minute grid.
 
-### F7. Privremeno zaključavanje termina (hold)
-Kada bot ponudi termin korisniku na potvrdu, taj slot se drži 2 minute u bazi sa statusom `HELD`. Drugi korisnici ne mogu rezervirati isti termin dok hold traje. Ako korisnik ne potvrdi u roku, hold automatski istječe i termin se oslobađa.
+### F6. Suggesting alternative slots
+If the requested slot is taken, the system automatically finds and offers up to 3 of the nearest free slots as inline buttons. It scans up to 14 days ahead and skips non-working days.
 
-### F8. Potvrda rezervacije inline gumbima
-Korisnik potvrđuje ili otkazuje ponuđenu rezervaciju jednim klikom na Telegram inline keyboard gumbe (Potvrdi / Odustani). Nema potrebe za pisanjem teksta.
+### F7. Temporary slot lock (hold)
+When the bot offers a slot to the user for confirmation, that slot is held in the database for 2 minutes with status `HELD`. Other users cannot book the same slot while the hold lasts. If the user does not confirm in time, the hold expires automatically and the slot is released.
 
-### F9. Pregled nadolazećih termina od strane korisnika
-Korisnik koristi `/my_bookings` ili postavlja pitanje poput "Koji su moji termini?" i dobije formatirani popis svih budućih potvrđenih rezervacija s datumom, vremenom, uslugom i frizerom.
+### F8. Booking confirmation with inline buttons
+The user confirms or cancels the offered booking with one tap on the Telegram inline keyboard (Confirm / Cancel). No typing is needed.
 
-### F10. Otkazivanje rezervacije od strane korisnika
-Korisnik koristi `/cancel` ili kaže "Želim otkazati termin". Bot prikazuje listu aktivnih termina s inline gumbima i korisnik jednim klikom otkaže odabrani termin. Sustav podržava otkazivanje i HELD i CONFIRMED rezervacija.
+### F9. User view of upcoming appointments
+The user sends `/my_bookings` or asks something like "What are my appointments?" and gets a formatted list of all future confirmed bookings with date, time, service and barber.
 
-### F11. Validacija unosa pri rezervaciji
-Bot odbija datume u prošlosti, datume dalje od 30 dana, zaokružuje vrijeme na najbližih 5 minuta i normalizira nazive usluga. Validacija se vrši na bot razini prije slanja zahtjeva booking servisu.
+### F10. Booking cancellation by the user
+The user sends `/cancel` or says "I want to cancel my appointment". The bot shows a list of active appointments with inline buttons and the user cancels the chosen one with one tap. Both HELD and CONFIRMED bookings can be cancelled.
 
-### F12. Zaštita od prompt injection napada
-Višeslojna obrana: sanitizacija ulaza (detekcija injection uzoraka, ograničenje duljine na 500 znakova), sigurnosne granice u system promptu, canary token za detekciju proboja, validacija LLM odgovora.
+### F11. Input validation during booking
+The bot rejects dates in the past and dates more than 30 days ahead, rounds the time to the nearest 5 minutes and normalises service names. Validation happens in the bot before the request is sent to the booking service.
 
-### F13. Rate limiting po korisniku
-Redis-bazirani sliding window rate limiter ograničava korisnika na 10 poruka po minuti. Prekomjerne poruke dobivaju upozorenje.
+### F12. Protection against prompt injection
+Layered defence: input sanitisation (injection pattern detection, a length limit of 500 characters), safety boundaries in the system prompt, a canary token to detect a breach, and validation of the LLM response.
 
-### F14. Dedupliciranje Telegram ažuriranja
-In-memory filter na gateway razini sprječava dvostruko procesiranje istog Telegram update-a. Koristi `update_id` s automatskim čišćenjem starih zapisa.
+### F13. Per-user rate limiting
+A Redis-based sliding-window rate limiter limits a user to 10 messages per minute. Excess messages get a warning.
 
-### F15. Serijalizacija poruka po korisniku
-Per-user Redis lock osigurava da se samo jedna poruka po korisniku obrađuje istovremeno. Stash-and-merge strategija spaja brze uzastopne tekstualne poruke u jedan LLM poziv.
+### F14. Telegram update deduplication
+An in-memory filter at the gateway prevents the same Telegram update from being processed twice. It uses `update_id` and cleans up old entries automatically.
 
-### F16. Perzistencija rezervacija u bazi podataka
-Sve rezervacije se trajno pohranjuju u PostgreSQL bazi s Flyway migracijama. Podaci uključuju korisnika, frizer, uslugu, datum, vrijeme, status i trajanje.
+### F15. Per-user message serialisation
+A per-user Redis lock makes sure only one message per user is processed at a time. A stash-and-merge strategy joins quick consecutive text messages into a single LLM call.
 
----
-
-## Funkcionalnosti za implementaciju
-
-### F17. Dodavanje rezervacije u kalendar (.ics)
-Kada korisnik potvrdi rezervaciju, bot uz poruku potvrde šalje i `.ics` datoteku (iCalendar format) kao Telegram dokument. Korisnik jednim klikom dodaje termin u Google Calendar, Apple Calendar ili Outlook. Pokriva: generiranje .ics datoteke, slanje dokumenta putem Telegram API-ja.
-
-### F18. Notifikacija korisniku prije termina
-Sustav šalje automatski podsjetnik korisniku putem Telegram poruke dan prije i/ili sat vremena prije zakazanog termina. Scheduled job u booking-service provjerava nadolazeće termine i publishira reply event.
-
-### F19. Admin pregled svih rezervacija
-Admin panel prikazuje listu svih rezervacija s filterima po datumu, frizeru, statusu i korisniku. Tablični prikaz s paginacijom i pretragom. Admin vidi tko je rezervirao, kada, kod koga i za koju uslugu.
-
-### F20. Admin otkazivanje rezervacije
-Admin može otkazati bilo koju rezervaciju iz admin panela. Korisnik automatski dobiva Telegram obavijest da je njegov termin otkazan od strane salona.
-
-### F21. Admin premještanje rezervacije
-Admin može promijeniti datum i/ili vrijeme postojeće rezervacije. Sustav provjerava dostupnost novog termina. Korisnik automatski dobiva Telegram obavijest s novim terminom.
-
-### F22. Admin dnevni raspored (kalendarski prikaz)
-Admin panel prikazuje dnevni/tjedni raspored po frizeru u vizualnom grid formatu. Svaki slot je bojom označen (slobodan, zauzet, held). Admin na prvi pogled vidi tko ima koji termin.
-
-### F23. Upravljanje katalogom frizera
-Admin može dodavati, uređivati i deaktivirati frizere kroz admin panel. Bot koristi katalog za validaciju imena frizera i prikaz dostupnih frizera korisniku. CRUD operacije s immediate efektom na bot.
-
-### F24. Upravljanje katalogom usluga
-Admin može definirati usluge (naziv, trajanje u minutama, cijena). Bot koristi katalog za validaciju usluga i izračun trajanja termina. Zamjenjuje hardkodirani `ServiceDuration`.
-
-### F25. Upravljanje radnim vremenom
-Admin može postaviti radno vrijeme po danu u tjednu, uključujući posebne dane (praznici, slobodni dani). Zamjenjuje hardkodirani `HardcodedWorkingHoursProvider` s DB-backed implementacijom.
-
-### F26. Korisnik može premjestiti svoju rezervaciju
-Korisnik kaže "Želim premjestiti termin" ili koristi gumb na inline keyboardu. Bot prikazuje postojeće termine, korisnik odabire koji želi premjestiti, a zatim nudi slobodne alternativne termine. Stari termin se automatski otkazuje, novi se kreira.
-
-### F27. Admin dashboard sa statistikama
-Admin panel prikazuje ključne metrike: ukupan broj rezervacija (dnevno/tjedno/mjesečno), stopa otkazivanja, najpopularniji frizer, najpopularnija usluga, vršni sati. Jednostavni grafovi.
-
-### F28. Profil korisnika s kontakt podacima
-Prilikom prve rezervacije bot traži ime i broj telefona korisnika. Podaci se spremaju u bazu i povezuju s Telegram userId-em. Salon može kontaktirati korisnika izvan Telegrama ako je potrebno.
-
-### F29. Ocjenjivanje usluge nakon termina
-Sat vremena nakon završetka termina, bot šalje korisniku poruku s pitanjem "Kako si zadovoljan uslugom?" s inline gumbima za ocjenu (1-5 zvjezdica). Ocjene se spremaju u bazu i vidljive su u admin panelu.
-
-### F30. Admin obavijest o novim rezervacijama
-Kada korisnik potvrdi novu rezervaciju, admin automatski dobiva obavijest (putem Telegrama ili u admin panelu) s detaljima rezervacije. Real-time notifikacija bez potrebe za osvježavanjem.
-
-### F31. Blokirani termini (pauze, ručak)
-Admin može blokirati određene vremenske slotove za pojedinog frizera (pauza za ručak, osobni razlozi). Blokirani slotovi se ponašaju kao zauzeti -- bot ih neće nuditi korisnicima.
-
-### F32. Unit i integracijski testovi
-Pokrivanje kritičnih putanja: slot availability engine (overlap detekcija, edge cases), booking flow (hold/confirm/cancel), handler pipeline (callback routing, validacija), input sanitizer. Integration testovi s Testcontainers za PostgreSQL, Redis i RabbitMQ.
-
-### F33. Automatsko brisanje razgovora (GDPR)
-Konverzacijska povijest u Redisu automatski istječe (TTL), ali rezervacije u PostgreSQL ostaju. Admin može obrisati sve podatke vezane za korisnika na zahtjev. Pokriva pravo na zaborav.
-
-### F34. Multi-tenant podrška
-Svaki frizerski salon dobiva vlastiti `tenantId`. Sve entitete, evente i upite filtriramo po tenant-u. Svaki salon može imati vlastiti Telegram bot, katalog usluga, frizere i raspored. Temelj za SaaS model.
-
-### F35. Waitlist za pune dane
-Kada su svi termini kod traženog frizera na traženi datum zauzeti, korisnik se može staviti na listu čekanja. Ako se termin oslobodi (otkazivanje), prvi korisnik na listi automatski dobiva obavijest s ponudom.
-
-### F36. Podrška za više komunikacijskih kanala
-Arhitektura već podržava proširenje jer je Telegram decoupliran kroz gateway. Dodavanje WhatsApp ili Viber kanala zahtijeva samo novi gateway adapter koji prevodi dolazne poruke u isti `InboundMessage` format.
+### F16. Booking persistence in the database
+All bookings are stored permanently in PostgreSQL with Flyway migrations. The data includes user, barber, service, date, time, status and duration.
 
 ---
 
-## Napomena o admin panelu
+## Planned features
 
-**Backend**: Spring Boot 3 + Spring Security + JWT (isti stack kao ostatak sustava, dijeli modele i bazu).
+### F17. Add the booking to a calendar (.ics)
+When the user confirms a booking, the bot sends an `.ics` file (iCalendar format) as a Telegram document along with the confirmation message. The user adds the appointment to Google Calendar, Apple Calendar or Outlook with one tap. Covers generating the .ics file and sending the document through the Telegram API.
 
-**Frontend**: React + TypeScript + HeroUI v3 + Tailwind CSS v4. Vite za build. TanStack Query za server state management.
+### F18. Notification before the appointment
+The system automatically sends the user a Telegram reminder the day before and/or one hour before the appointment. A scheduled job in the booking service checks upcoming appointments and publishes a reply event.
 
-Admin panel je zasebni modul (`admin-service` za backend, `admin-frontend` za frontend) koji komunicira s istom PostgreSQL bazom i RabbitMQ-om za real-time obavijesti.
+### F19. Admin overview of all bookings
+The admin panel shows a list of all bookings with filters by date, barber, status and user. It is a table with pagination and search. The admin sees who booked, when, with whom and for which service.
+
+### F20. Admin cancels a booking
+The admin can cancel any booking from the admin panel. The user automatically receives a Telegram message that the salon cancelled the appointment.
+
+### F21. Admin reschedules a booking
+The admin can change the date and/or time of an existing booking. The system checks the availability of the new slot. The user automatically receives a Telegram message with the new time.
+
+### F22. Admin daily schedule (calendar view)
+The admin panel shows the daily/weekly schedule per barber in a visual grid. Each slot is colour-coded (free, booked, held). The admin sees at a glance who has which appointment.
+
+### F23. Barber catalogue management
+The admin can add, edit and deactivate barbers in the admin panel. The bot uses the catalogue to validate barber names and to show available barbers to the user. CRUD operations take effect in the bot immediately.
+
+### F24. Service catalogue management
+The admin can define services (name, duration in minutes, price). The bot uses the catalogue to validate services and calculate the appointment duration. It replaces the hard-coded `ServiceDuration`.
+
+### F25. Working hours management
+The admin can set working hours per weekday, including special days (holidays, days off). It replaces the hard-coded `HardcodedWorkingHoursProvider` with a database-backed implementation.
+
+### F26. User reschedules their own booking
+The user says "I want to move my appointment" or uses a button on the inline keyboard. The bot shows the existing appointments, the user picks the one to move, and the bot then offers free alternative slots. The old appointment is cancelled automatically and a new one is created.
+
+### F27. Admin dashboard with statistics
+The admin panel shows key metrics: total number of bookings (daily/weekly/monthly), cancellation rate, most popular barber, most popular service, peak hours. Simple charts.
+
+### F28. User profile with contact details
+On the first booking the bot asks for the user's name and phone number. The data is stored in the database and linked to the Telegram user ID. The salon can contact the user outside Telegram if needed.
+
+### F29. Service rating after the appointment
+One hour after the appointment ends, the bot sends the user a message asking "How satisfied are you with the service?" with inline buttons for a rating (1-5 stars). Ratings are stored in the database and visible in the admin panel.
+
+### F30. Admin notification about new bookings
+When a user confirms a new booking, the admin automatically receives a notification (through Telegram or in the admin panel) with the booking details. Real-time notification without refreshing.
+
+### F31. Blocked slots (breaks, lunch)
+The admin can block specific time slots for a barber (lunch break, personal reasons). Blocked slots behave like booked ones, so the bot will not offer them to users.
+
+### F32. Unit and integration tests
+Coverage of the critical paths: slot availability engine (overlap detection, edge cases), booking flow (hold/confirm/cancel), handler pipeline (callback routing, validation), input sanitiser. Integration tests with Testcontainers for PostgreSQL, Redis and RabbitMQ.
+
+### F33. Automatic conversation deletion (GDPR)
+Conversation history in Redis expires automatically (TTL), while bookings in PostgreSQL stay. The admin can delete all data related to a user on request. Covers the right to be forgotten.
+
+### F34. Multi-tenant support
+Every barbershop gets its own `tenantId`. All entities, events and queries are filtered by tenant. Each shop can have its own Telegram bot, service catalogue, barbers and schedule. This is the foundation for a SaaS model.
+
+### F35. Waitlist for full days
+When all slots with the requested barber on the requested date are taken, the user can join a waitlist. If a slot is freed (a cancellation), the first user on the list automatically gets a notification with an offer.
+
+### F36. Support for more communication channels
+The architecture already allows this because Telegram is decoupled through the gateway. Adding WhatsApp or Viber only requires a new gateway adapter that translates incoming messages into the same `InboundMessage` format.
+
+---
+
+## Note on the admin panel
+
+**Backend**: Spring Boot 3 + Spring Security + JWT (the same stack as the rest of the system, sharing models and the database).
+
+**Frontend**: React + TypeScript + HeroUI v3 + Tailwind CSS v4. Vite for the build. TanStack Query for server state management.
+
+The admin panel is a separate module (`admin-service` for the backend, `admin-dashboard` for the frontend) that talks to the same PostgreSQL database and to RabbitMQ for real-time notifications.

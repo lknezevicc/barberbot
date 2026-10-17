@@ -64,6 +64,7 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       TELEGRAM_SECRET_TOKEN: ${TELEGRAM_SECRET_TOKEN}
+      SPRING_PROFILES_ACTIVE: docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 15s
@@ -82,6 +83,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -89,7 +92,13 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-barberbot}
+      DB_USERNAME: ${POSTGRES_USER:-barberbot}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-barberbot}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      SPRING_PROFILES_ACTIVE: docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 15s
@@ -106,6 +115,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
@@ -114,6 +125,12 @@ services:
       TELEGRAM_BOT_NAME: ${TELEGRAM_BOT_NAME}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-barberbot}
+      POSTGRES_USER: ${POSTGRES_USER:-barberbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barberbot}
+      SPRING_PROFILES_ACTIVE: docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 15s
@@ -142,11 +159,76 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      SPRING_PROFILES_ACTIVE: docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 3
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: admin-service/Dockerfile
+    container_name: barberbot-admin
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-barberbot}
+      POSTGRES_USER: ${POSTGRES_USER:-barberbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barberbot}
+      JWT_SECRET: ${JWT_SECRET:-barberbot-dev-secret-key-change-in-production-minimum-256-bits-long}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      SPRING_PROFILES_ACTIVE: docker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    container_name: barberbot-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      admin-service:
+        condition: service_started
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: barberbot-ngrok
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: http gateway-service:8081 --log stdout
+    ports:
+      - "4040:4040"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+
+  webhook-init:
+    image: curlimages/curl:latest
+    container_name: barberbot-webhook-init
+    profiles: ["tunnel"]
+    depends_on:
+      - ngrok
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_SECRET_TOKEN: ${TELEGRAM_SECRET_TOKEN}
+      DEFAULT_TENANT_ID: ${DEFAULT_TENANT_ID:-a0000000-0000-0000-0000-000000000001}
+    entrypoint: ["/bin/sh", "/scripts/register-webhook.sh"]
+    volumes:
+      - ./scripts:/scripts:ro
 
 volumes:
   redis-data:

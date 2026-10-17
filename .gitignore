@@ -142,3 +142,17 @@ buildNumber.properties
 .classpath
 
 # End of https://www.toptal.com/developers/gitignore/api/java,maven,intellij+all,dotenv
+
+### Local tooling and course material (not part of the project) ###
+.DS_Store
+.cursor/
+AGENTS.md
+OORP_*.pptx
+dd01-review*.html
+docs/prezentacija/
+docs/burndown/
+docs/clickup-export.csv
+docs/PLAN_PROJEKTA.md
+docs/EVALUACIJA.md
+scripts/*
+!scripts/register-webhook.sh
